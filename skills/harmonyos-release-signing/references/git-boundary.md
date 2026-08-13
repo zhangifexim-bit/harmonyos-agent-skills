@@ -1,5 +1,13 @@
 # Git boundary for local signing
 
+## Three independent checks
+
+1. **Tracked now** — inspect the current tree for signing material or local-only signing configuration.
+2. **Staged now** — inspect the index separately; an ignored file can still have been force-added.
+3. **Reachable history** — inspect commits reachable from current refs for prohibited signing material names and runtime-only private markers without printing their contents.
+
+Real signing material in reachable history is `SIGNING_SECRET_INCIDENT`. Stop further publication and pushing. Provide an incident recovery plan, but never rewrite history, force push, rotate credentials, or delete remote refs without explicit human authorization.
+
 ## Preflight
 
 ```powershell

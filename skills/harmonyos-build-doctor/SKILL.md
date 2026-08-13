@@ -9,6 +9,18 @@ description: Diagnose HarmonyOS and DevEco Studio command-line build failures in
 
 Diagnose the environment before changing the application. Prefer the runtime and SDK bundled with the active DevEco Studio installation over installing a second toolchain.
 
+## Use when
+
+Use when DevEco Studio works but a shell build fails, or when Node, SDK, Java, Hvigor, wrapper, daemon, or tool-root evidence prevents the build from reaching application compilation.
+
+## Do not use when
+
+Do not use to fix business ArkTS logic, configure Release signing, verify a final APP, or authorize publication.
+
+## Handoff
+
+When the environment issue is resolved and the retry exposes a compile or dependency error, close the original diagnosis and hand off the new evidence as a separate problem. Do not edit application code without separate authorization.
+
 ## Required inputs
 
 - Project root and exact failing command.
@@ -30,7 +42,8 @@ Diagnose the environment before changing the application. Prefer the runtime and
 5. If a bundled component is valid, set environment variables only in the current process and retry the exact original command.
 6. Stop the Hvigor daemon when switching SDK or Java roots, using the locally supported `--stop-daemon` form discovered from wrapper help.
 7. Compare the retry with the original failure. Advance to the next layer only if the causal error changed.
-8. Return the evidence contract below.
+8. Mark the prior layer `RESOLVED` when its causal error disappears. Reclassify the replacement failure from fresh evidence; never carry the old diagnosis forward.
+9. Return the evidence contract below.
 
 Use [environment evidence](references/environment-evidence.md) to interpret `FOUND`, `NOT_FOUND`, `INVALID`, and `UNKNOWN`.
 
@@ -40,6 +53,7 @@ Use [environment evidence](references/environment-evidence.md) to interpret `FOU
 - **SDK missing/invalid:** inspect Process, User, and Machine `DEVECO_SDK_HOME`; check the active DevEco SDK; verify required API/components; set only the process value; stop the daemon; retry.
 - **`spawn java ENOENT`:** check `Get-Command java` and `JAVA_HOME`; prefer the active DevEco JBR containing `bin\java.exe`; set `JAVA_HOME` and process `PATH`; stop the daemon; retry.
 - If the command reaches ArkTS compilation after an environment change, reclassify any new error from fresh evidence; do not retain the original environment diagnosis automatically.
+- **Multiple DevEco installations:** never select the newest automatically. Prefer project configuration, the IDE active path, wrapper/tool evidence, or a human-supplied path. If these cannot identify one root, report `BLOCKED_AMBIGUOUS_DEVECO`.
 
 ## Stop conditions
 
@@ -63,6 +77,8 @@ Return:
 - **Process-only action** — exact variables changed, with credential values omitted.
 - **Retry result** — exact task, exit code, changed/unchanged error, completed stages.
 - **Next minimal action** — one step, or `none` if resolved.
+
+Optionally append redacted JSON conforming to the repository's [evidence schema](https://github.com/zhangifexim-bit/harmonyos-agent-skills/blob/main/schemas/evidence.schema.json). Use `persistent_changes: false`; paths should be redacted categories, not personal absolute paths.
 
 ## Validation
 

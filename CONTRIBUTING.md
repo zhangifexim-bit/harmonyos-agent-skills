@@ -29,11 +29,14 @@ From the repository root, run:
 ```powershell
 python -m py_compile scripts\validate_skills.py scripts\scan_private_markers.py
 python scripts\validate_skills.py
+python scripts\validate_reliability.py
 python -m unittest discover -s tests -v
 python scripts\scan_private_markers.py --generic-only
 ```
 
 When PowerShell is available, parse and execute the environment probe in a read-only test context. Also run `git diff --check` before requesting review.
+
+Live-agent evals are optional and must never be described as passing unless an agent was actually invoked and graded. Keep public CI deterministic; do not require credentials or paid quota to validate a pull request.
 
 ## Pull requests
 

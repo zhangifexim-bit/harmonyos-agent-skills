@@ -4,6 +4,14 @@
 
 面向 AI Coding Agent 的 HarmonyOS / DevEco Studio 工程化技能集，覆盖项目审计、构建排障、Release 签名、验签与 Git 安全。
 
+**稳定版：** `v0.2.0` · Reliability Release
+
+```powershell
+.\install.ps1
+```
+
+安全安装器默认安装全部 4 个 Skill，不覆盖已有同名目录，并支持 `-Skill`、`-Update`、`-Uninstall` 与 `-WhatIf`。手工安装见下文。
+
 > 先诊断环境，再修改应用。
 
 > 修改之前，先拿证据。
@@ -23,6 +31,17 @@ DevEco Studio 中可以构建，并不代表独立 PowerShell 中的 `hvigorw` �
 | [`harmonyos-release-signing`](skills/harmonyos-release-signing/SKILL.md) | 安全检查 Debug/Release 签名，并将凭据和本机差异挡在 Git 之外。 |
 | [`harmonyos-release-check`](skills/harmonyos-release-check/SKILL.md) | 发布前构建、独立验签、设备冒烟、恢复本机配置并确认 Git clean。 |
 
+## 应该使用哪个 Skill？
+
+| 意图 | Primary Skill |
+| --- | --- |
+| 首次检查、接手或建立基线 | `harmonyos-project-audit` |
+| IDE 正常但 CLI 构建失败 | `harmonyos-build-doctor` |
+| 配置或审计签名 | `harmonyos-release-signing` |
+| 验证最终候选或 publication gate | `harmonyos-release-check` |
+
+Release Signing 是 leaf；Release Check 是唯一 release orchestrator。完整规则见 [Skill routing 与 handoff contract](docs/skill-routing.md)。
+
 ## 能解决什么问题
 
 - IDE 可用，但命令行找不到 Node、SDK 组件或 Java。
@@ -33,7 +52,18 @@ DevEco Studio 中可以构建，并不代表独立 PowerShell 中的 `hvigorw` �
 
 ## 安装
 
-克隆仓库后，只安装实际需要的 Skill。对 Codex，可将 `skills/` 下的单个目录复制到当前配置的 Codex skills 目录；也可以在工作区中保留本仓库并按路径调用。
+克隆仓库后运行 fail-safe 安装器。显式 `-Destination` 优先；否则使用已配置的 `CODEX_HOME\skills`，再回退到当前用户的 Codex skills 目录。默认绝不覆盖已有目录。
+
+```powershell
+.\install.ps1
+.\install.ps1 -List
+.\install.ps1 -Skill harmonyos-build-doctor
+.\install.ps1 -All -WhatIf
+```
+
+选择 Skill 时会安装或更新其完整依赖闭包；例如安装 Release Check 会同时安装 Release Signing。`-Update` 与 `-Uninstall` 只处理带有本仓库 ownership marker 的安装；发现本地修改就停止。如果仍有已安装 Skill 依赖某项，卸载器会拒绝删除该依赖。安装器不会修改 `AGENTS.md` 或用户项目。
+
+无依赖的叶子 Skill 仍可单独手工复制。对于在 `skills-manifest.json` 中声明依赖的 Skill，必须同时安装完整依赖闭包；推荐使用 `install.ps1` 自动解析依赖：
 
 ```powershell
 git clone <repository-url> harmonyos-agent-skills
@@ -63,6 +93,15 @@ Copy-Item -Recurse -LiteralPath .\harmonyos-agent-skills\skills\harmonyos-projec
 .\scripts\check-deveco-env.ps1 -ProjectPath <project-root> -Json
 ```
 
+可靠性契约采用机器校验：
+
+```powershell
+python scripts\validate_reliability.py
+python scripts\run_behavioral_evals.py --case build-001-node-missing
+```
+
+第二条命令只验证可选 harness，并报告 `LIVE_AGENT_EVAL_NOT_RUN`；只有显式提供 `--execute` 和审阅过的 runner command 才会真实调用 Agent。详见 [Behavioral Evals](docs/behavioral-evals.md)。
+
 ## 示例提示
 
 - `使用 $harmonyos-project-audit 输出当前状态、风险、未知项和最小下一步。`
@@ -88,9 +127,11 @@ Copy-Item -Recurse -LiteralPath .\harmonyos-agent-skills\skills\harmonyos-projec
 python scripts\validate_skills.py
 python -m unittest discover -s tests -v
 python scripts\scan_private_markers.py --generic-only
+python scripts\scan_git_metadata.py
 ```
 
 审计私有来源时，仅在运行时通过 `--marker` 或 `--marker-file` 传入私有标识，绝不能提交到仓库。
+Git 元数据审计覆盖可达 commit 的 author、committer 与 message、annotated tag 的 tagger 与 message，以及 branch/tag ref 名称；命中值始终隐藏。
 
 ## 仓库结构
 
@@ -105,7 +146,7 @@ docs/        架构、兼容性、安全边界与设计原则
 
 ## 兼容性
 
-当前以 Windows 上的 DevEco Studio 与 HarmonyOS 应用工程为主要场景，Git 和审计原则大多可跨平台使用。工具路径、任务名、参数、SDK 布局和签名行为可能随版本变化；执行前必须查看本机工具帮助与项目配置。详见 [`docs/compatibility.md`](docs/compatibility.md)。
+当前以 Windows 上的 DevEco Studio 与 HarmonyOS 应用工程为主要场景，Git 和审计原则大多可跨平台使用。兼容矩阵仅把一个脱敏组合标为 field-verified，不代表支持所有版本。工具路径、任务名、参数、SDK 布局和签名行为仍须以本机帮助和项目配置为准。详见 [`docs/compatibility.md`](docs/compatibility.md)。
 
 ## 贡献
 

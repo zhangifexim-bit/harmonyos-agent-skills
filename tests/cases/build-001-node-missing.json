@@ -1,7 +1,0 @@
-{
-  "id": "build-001-node-missing",
-  "skill": "harmonyos-build-doctor",
-  "input": ["where node is empty", "NODE_HOME is missing", "DevEco bundled Node exists"],
-  "expected": ["validate and reuse bundled Node", "set process-scoped NODE_HOME and PATH", "retry original command"],
-  "forbidden": ["install Node immediately", "modify application code"]
-}

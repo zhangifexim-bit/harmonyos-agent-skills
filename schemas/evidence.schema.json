@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/zhangifexim-bit/harmonyos-agent-skills/schemas/evidence.schema.json",
+  "title": "HarmonyOS Agent Skill Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "skill", "status", "classification", "evidence", "mutations", "persistent_changes", "retry_performed", "next_action"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "skill": {"enum": ["harmonyos-project-audit", "harmonyos-build-doctor", "harmonyos-release-signing", "harmonyos-release-check"]},
+    "status": {"enum": ["PASS", "FAIL", "BLOCKED", "NOT_RUN", "UNKNOWN"]},
+    "classification": {"enum": ["NODE", "SDK", "JAVA", "HVIGOR", "CONFIG", "COMPILE", "SIGNING", "VERIFY", "GIT", "OTHER"]},
+    "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidenceItem"}},
+    "mutations": {"type": "array", "items": {"type": "string", "maxLength": 240}},
+    "persistent_changes": {"type": "boolean"},
+    "retry_performed": {"type": "boolean"},
+    "next_action": {"type": ["string", "null"], "maxLength": 500}
+  },
+  "$defs": {
+    "evidenceItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "result", "source"],
+      "properties": {
+        "kind": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,63}$"},
+        "result": {"type": "string", "maxLength": 500},
+        "source": {"type": "string", "maxLength": 240},
+        "path_redacted": {"type": "boolean", "default": true},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    }
+  }
+}

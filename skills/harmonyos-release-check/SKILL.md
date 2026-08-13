@@ -9,6 +9,18 @@ description: Run the final evidence-based gate for a HarmonyOS publication candi
 
 Verify the exact final artifact independently. A successful assemble task or the existence of a signed file is not sufficient release evidence.
 
+## Use when
+
+Use for a final Release candidate: signing-evidence orchestration, fresh APP selection, independent verification, SHA-256 identity, human smoke testing, cleanup, and the publication readiness decision.
+
+## Do not use when
+
+Do not use for an initial project baseline, an isolated environment startup failure, signing configuration alone, or any publication action that lacks separate authorization.
+
+## Handoff
+
+Release Check is the only release orchestrator. It may call `$harmonyos-release-signing` at most once in one invocation when valid signing-audit evidence is absent. Reuse valid signing evidence, and must not recurse into itself or ask Release Signing to invoke it.
+
 ## Required inputs
 
 - Clean intended Git commit and explicit release scope.
@@ -19,21 +31,33 @@ Verify the exact final artifact independently. A successful assemble task or the
 
 ## Workflow
 
-1. Audit Git scope, HEAD, staged/dirty state, ignored outputs, and credential boundaries.
-2. Audit Release configuration and product/signing binding with `$harmonyos-release-signing`.
-3. Run the project-supported Release `assembleApp` command. Capture exact command, exit code, and completed build/sign tasks.
+1. Before entering `SIGNING_READY`, run a distinct Git preflight: confirm the correct repository root, intended HEAD, tracked and staged scope, ignored outputs, and credential boundary. Stop on any mismatch.
+2. Reuse valid `SIGNING_READY` evidence when available. Otherwise audit Release configuration and product/signing binding with `$harmonyos-release-signing` once. Do not build until `SIGNING_READY` is established.
+3. As the only formal Release build orchestrator, run the project-supported Release `assembleApp` command exactly once. Capture exact command, exit code, and completed build/sign tasks; do not ask Release Signing to build first.
 4. Confirm SignHap and SignApp evidence when the local Hvigor version exposes those task names.
-5. Resolve exactly one final `.app`; reject stale or ambiguous candidates.
+5. Record the build start/end timestamps, discover pre-existing and post-build outputs, and resolve exactly one newly produced final `.app`; reject stale or ambiguous candidates.
 6. Read [the hap-sign-tool verification guide](references/hap-sign-tool-verification.md), inspect local help, and run `verify-app` into a new temporary directory.
-7. Hash the final artifact and record the digest as release evidence.
+7. Hash the final artifact with SHA-256 and record that digest as the immutable candidate identity.
 8. Verify the extracted certificate chain against the expected Release identity without publishing the real fingerprint.
 9. Verify the extracted profile, profile type, validity, and expected bundle using the active tool's supported read-only commands.
 10. Prove the candidate is Release, not Debug, from build mode plus profile/identity evidence.
-11. Require a human device smoke test of the exact verified artifact. Record observed result separately from build output.
+11. Require a human device smoke test of the exact verified SHA-256 artifact. Re-hash the tested file; a matching filename is insufficient.
 12. Restore local-only signing configuration and confirm Git clean.
 13. Allow commit or tag only after all required evidence passes and the user separately authorizes it.
 
 Use [the release gate matrix](references/release-gate.md) to classify each stage.
+
+## Publication state machine
+
+Advance only in order:
+
+```text
+SIGNING_READY -> BUILD_READY -> ARTIFACT_VERIFIED -> SMOKE_TESTED -> GIT_CLEAN -> READY_FOR_PUBLICATION
+```
+
+Every transition requires its own evidence. Missing, failed, stale, or mismatched evidence blocks the next state.
+
+The preflight Git gate occurs before `SIGNING_READY`; it does not replace the later `GIT_CLEAN` transition after the build, verification, and smoke test.
 
 ## Decision rules
 
@@ -57,6 +81,8 @@ Stop before device installation if independent verification fails. Stop before t
 ## Output contract
 
 Return a gate table with `PASS`, `FAIL`, `BLOCKED`, or `NOT_RUN` for Git scope, Release config, assembleApp, SignHap, SignApp, final APP selection, `verify-app`, digest, certificate identity, profile, bundle, Release-vs-Debug, human smoke test, local config restore, and Git clean. Include safe evidence and one next action for each non-pass state.
+
+Also report the highest publication state reached. Optionally append redacted JSON conforming to the repository's [evidence schema](https://github.com/zhangifexim-bit/harmonyos-agent-skills/blob/main/schemas/evidence.schema.json); artifact evidence may include SHA-256 but never a secret, fingerprint, private profile, or personal absolute path.
 
 ## Validation
 

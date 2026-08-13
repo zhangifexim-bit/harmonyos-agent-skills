@@ -4,6 +4,14 @@
 
 Reusable AI agent skills for safer HarmonyOS and DevEco Studio engineering, build troubleshooting, release signing, verification, and Git hygiene.
 
+**Stable:** `v0.2.0` · Reliability Release
+
+```powershell
+.\install.ps1
+```
+
+The safe installer installs all four Skills by default, never overwrites an existing same-name directory, and supports `-Skill`, `-Update`, `-Uninstall`, and `-WhatIf`. See [Installation](#installation) for the manual fallback.
+
 > Diagnose the environment before changing the application.
 
 > Evidence before edits.
@@ -23,6 +31,17 @@ This repository is an engineering workflow collection, not an ArkTS tutorial or 
 | [`harmonyos-release-signing`](skills/harmonyos-release-signing/SKILL.md) | Configure and review Debug/Release signing while keeping credentials and local-only changes outside Git. |
 | [`harmonyos-release-check`](skills/harmonyos-release-check/SKILL.md) | Build, independently verify, smoke-test, and clean up a publication candidate before tag or release. |
 
+## Which skill should I use?
+
+| Intent | Primary skill |
+| --- | --- |
+| First inspection, takeover, or baseline | `harmonyos-project-audit` |
+| IDE works but the CLI build fails | `harmonyos-build-doctor` |
+| Configure or audit signing | `harmonyos-release-signing` |
+| Verify a final candidate or publication gate | `harmonyos-release-check` |
+
+Release Signing is a leaf; Release Check is the only release orchestrator. See the complete [routing and handoff contract](docs/skill-routing.md).
+
 ## What problems it solves
 
 - An IDE build works, but `hvigorw` cannot find Node, an SDK component, or Java.
@@ -33,7 +52,18 @@ This repository is an engineering workflow collection, not an ArkTS tutorial or 
 
 ## Installation
 
-Clone this repository, then install only the skill directories you need into the skill directory supported by your coding agent. For Codex, each directory under `skills/` is self-contained and can be copied into the configured Codex skills directory.
+Clone this repository, then run the fail-safe installer. An explicit `-Destination` wins; otherwise it uses `CODEX_HOME\skills` when configured, then the current user's Codex skills directory. Existing directories are never overwritten by default.
+
+```powershell
+.\install.ps1                     # all four Skills
+.\install.ps1 -List               # inventory only
+.\install.ps1 -Skill harmonyos-build-doctor
+.\install.ps1 -All -WhatIf       # preview only
+```
+
+Selecting a Skill installs or updates its complete dependency closure; for example, Release Check also installs Release Signing. `-Update` and `-Uninstall` act only on installations carrying this repository's ownership marker and stop if local modifications are detected. Uninstall refuses to remove a dependency while an installed dependent remains. The installer does not modify `AGENTS.md` or a user project.
+
+Manual installation remains available for leaf Skills with no dependencies. A Skill that declares dependencies in `skills-manifest.json` must be installed together with its complete dependency closure. Prefer `install.ps1` so dependencies are resolved automatically:
 
 PowerShell example:
 
@@ -65,6 +95,15 @@ The environment probe is read-only:
 .\scripts\check-deveco-env.ps1 -ProjectPath <project-root> -Json
 ```
 
+Reliability contracts are machine checked:
+
+```powershell
+python scripts\validate_reliability.py
+python scripts\run_behavioral_evals.py --case build-001-node-missing
+```
+
+The second command validates the optional harness and reports `LIVE_AGENT_EVAL_NOT_RUN`; a real agent is called only with explicit `--execute` and a reviewed runner command. See [behavioral evaluations](docs/behavioral-evals.md).
+
 ## Example prompts
 
 - `Use $harmonyos-project-audit to report current state, risks, unknowns, and the smallest safe next action.`
@@ -92,9 +131,11 @@ Run the repository checks with:
 python scripts\validate_skills.py
 python -m unittest discover -s tests -v
 python scripts\scan_private_markers.py --generic-only
+python scripts\scan_git_metadata.py
 ```
 
 For a private-source audit, pass confidential markers at runtime with `--marker` or `--marker-file`; never commit them.
+The Git metadata audit covers reachable commit identities/messages, annotated-tag taggers/messages, and branch/tag ref names while suppressing matched values.
 
 ## Repository structure
 
@@ -109,7 +150,7 @@ docs/        Architecture, compatibility, boundaries, and design rationale
 
 ## Compatibility
 
-The workflows target Windows-first DevEco Studio and HarmonyOS application projects, but most audit and Git rules are platform-neutral. Tool locations, task names, flags, SDK layouts, and signing behavior vary by DevEco Studio, HarmonyOS SDK, and Hvigor version. Read local tool help and project configuration before executing version-sensitive commands. See [`docs/compatibility.md`](docs/compatibility.md).
+The workflows target Windows-first DevEco Studio and HarmonyOS application projects, but most audit and Git rules are platform-neutral. One sanitized environment is field-verified; it is evidence, not a claim of universal support. Tool locations, task names, flags, SDK layouts, and signing behavior remain version-sensitive. See [`docs/compatibility.md`](docs/compatibility.md).
 
 ## Contributing
 

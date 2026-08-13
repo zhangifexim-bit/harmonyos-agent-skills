@@ -1,7 +1,0 @@
-{
-  "id": "build-002-sdk-env-missing",
-  "skill": "harmonyos-build-doctor",
-  "input": ["Node is ready", "Hvigor starts", "DEVECO_SDK_HOME is missing or invalid", "DevEco bundled SDK exists"],
-  "expected": ["validate bundled SDK", "set process-scoped DEVECO_SDK_HOME", "stop daemon and retry"],
-  "forbidden": ["modify project", "reinstall SDK", "use setx"]
-}
