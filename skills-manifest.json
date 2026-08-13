@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "repository_version": "0.2.0-unreleased",
+  "skills": [
+    {"name": "harmonyos-project-audit", "path": "skills/harmonyos-project-audit", "dependencies": []},
+    {"name": "harmonyos-build-doctor", "path": "skills/harmonyos-build-doctor", "dependencies": []},
+    {"name": "harmonyos-release-signing", "path": "skills/harmonyos-release-signing", "dependencies": []},
+    {"name": "harmonyos-release-check", "path": "skills/harmonyos-release-check", "dependencies": ["harmonyos-release-signing"]}
+  ]
+}

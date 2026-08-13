@@ -1,5 +1,13 @@
 # Release gate matrix
 
+## Required state order
+
+```text
+BUILD_READY -> SIGNING_READY -> ARTIFACT_VERIFIED -> SMOKE_TESTED -> GIT_CLEAN -> READY_FOR_PUBLICATION
+```
+
+No state may be inferred from a later state. Each transition needs independent evidence.
+
 | Gate | PASS evidence | Fail closed when |
 | --- | --- | --- |
 | Git scope | Intended HEAD, reviewed diff, no credentials | Wrong root, unrelated changes, sensitive files |
@@ -15,3 +23,5 @@
 | Publication | Separate explicit authorization | Any gate incomplete or no authorization |
 
 `BLOCKED` is not `FAIL`: use it when required external evidence or human testing is unavailable. Neither state permits publication.
+
+Freshness requires build start/end timestamps, pre/post output discovery, and SHA-256. The device smoke-test record must carry the same SHA-256 as independent verification; filename equality is not identity evidence.

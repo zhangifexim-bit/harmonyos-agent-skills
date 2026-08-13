@@ -1,5 +1,9 @@
 # DevEco CLI build decision tree
 
+## 0. Which DevEco installation is active?
+
+When multiple installations are present, do not sort by version and choose the newest. Resolve the active root from project configuration, IDE-active path evidence, wrapper/tool provenance, or a human-supplied path. Conflicting or insufficient evidence produces `BLOCKED_AMBIGUOUS_DEVECO`.
+
 ## 1. Can the selected Node start Hvigor?
 
 Evidence:
@@ -57,3 +61,5 @@ Once Node, SDK, and Java evidence is valid, classify the new causal error indepe
 - packaging or artifact verification.
 
 An environment repair is successful only when it removes the environment error. It does not prove the application is correct.
+
+The transition record must explicitly mark the prior issue `RESOLVED`, include the new classification, and avoid reusing the original diagnosis.

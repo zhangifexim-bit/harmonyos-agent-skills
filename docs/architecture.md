@@ -35,3 +35,23 @@ Read-only audit -> authorized minimal change -> focused validation
 ```
 
 A downstream state never backfills an upstream state. For example, a file named `release` does not prove Release mode, and a successful compile does not prove device behavior.
+
+## Skill dependency graph
+
+```text
+harmonyos-project-audit
+harmonyos-build-doctor
+harmonyos-release-signing
+        ^
+        |
+harmonyos-release-check
+```
+
+The first three are independent or leaf workflows. Release Check is the only release orchestrator and may consume Release Signing evidence or invoke that skill once. Release Signing never invokes Release Check. [`../skills-manifest.json`](../skills-manifest.json) is the machine-readable source of truth, and blocking validation rejects cycles.
+
+## Reliability contracts
+
+- [`skill-routing.md`](skill-routing.md) defines one primary route per typical intent and explicit, non-recursive handoffs.
+- [`../schemas/evidence.schema.json`](../schemas/evidence.schema.json) defines optional redacted evidence for machine handoff while preserving human-readable output.
+- [`../tests/evals/reliability-cases.json`](../tests/evals/reliability-cases.json) contains deterministic synthetic contracts.
+- [`behavioral-evals.md`](behavioral-evals.md) distinguishes blocking contract checks from optional real-agent execution.
