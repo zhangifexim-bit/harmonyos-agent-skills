@@ -63,7 +63,7 @@ Clone this repository, then run the fail-safe installer. An explicit `-Destinati
 
 Selecting a Skill installs or updates its complete dependency closure; for example, Release Check also installs Release Signing. `-Update` and `-Uninstall` act only on installations carrying this repository's ownership marker and stop if local modifications are detected. Uninstall refuses to remove a dependency while an installed dependent remains. The installer does not modify `AGENTS.md` or a user project.
 
-Manual installation remains available. Each directory under `skills/` is self-contained:
+Manual installation remains available for leaf Skills with no dependencies. A Skill that declares dependencies in `skills-manifest.json` must be installed together with its complete dependency closure. Prefer `install.ps1` so dependencies are resolved automatically:
 
 PowerShell example:
 

@@ -63,7 +63,7 @@ Release Signing 是 leaf；Release Check 是唯一 release orchestrator。完整
 
 选择 Skill 时会安装或更新其完整依赖闭包；例如安装 Release Check 会同时安装 Release Signing。`-Update` 与 `-Uninstall` 只处理带有本仓库 ownership marker 的安装；发现本地修改就停止。如果仍有已安装 Skill 依赖某项，卸载器会拒绝删除该依赖。安装器不会修改 `AGENTS.md` 或用户项目。
 
-仍可手工复制单个自包含 Skill：
+无依赖的叶子 Skill 仍可单独手工复制。对于在 `skills-manifest.json` 中声明依赖的 Skill，必须同时安装完整依赖闭包；推荐使用 `install.ps1` 自动解析依赖：
 
 ```powershell
 git clone <repository-url> harmonyos-agent-skills
