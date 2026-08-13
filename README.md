@@ -61,7 +61,7 @@ Clone this repository, then run the fail-safe installer. An explicit `-Destinati
 .\install.ps1 -All -WhatIf       # preview only
 ```
 
-`-Update` and `-Uninstall` act only on installations carrying this repository's ownership marker and stop if local modifications are detected. They do not modify `AGENTS.md` or a user project.
+Selecting a Skill installs or updates its complete dependency closure; for example, Release Check also installs Release Signing. `-Update` and `-Uninstall` act only on installations carrying this repository's ownership marker and stop if local modifications are detected. Uninstall refuses to remove a dependency while an installed dependent remains. The installer does not modify `AGENTS.md` or a user project.
 
 Manual installation remains available. Each directory under `skills/` is self-contained:
 
@@ -131,9 +131,11 @@ Run the repository checks with:
 python scripts\validate_skills.py
 python -m unittest discover -s tests -v
 python scripts\scan_private_markers.py --generic-only
+python scripts\scan_git_metadata.py
 ```
 
 For a private-source audit, pass confidential markers at runtime with `--marker` or `--marker-file`; never commit them.
+The Git metadata audit covers reachable commit identities/messages, annotated-tag taggers/messages, and branch/tag ref names while suppressing matched values.
 
 ## Repository structure
 

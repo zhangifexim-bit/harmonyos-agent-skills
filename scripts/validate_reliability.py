@@ -27,6 +27,7 @@ REQUIRED_CASE_FIELDS = {
     "expected_next_action",
 }
 CLASSIFICATIONS = {"NODE", "SDK", "JAVA", "HVIGOR", "CONFIG", "COMPILE", "SIGNING", "VERIFY", "GIT", "OTHER"}
+PUBLICATION_STATES = ["SIGNING_READY", "BUILD_READY", "ARTIFACT_VERIFIED", "SMOKE_TESTED", "GIT_CLEAN", "READY_FOR_PUBLICATION"]
 
 
 def load_json(path: Path) -> Any:
@@ -225,10 +226,51 @@ def validate_routing(repo_root: Path = REPO_ROOT) -> list[str]:
     return errors
 
 
+def validate_publication_state_machine(repo_root: Path = REPO_ROOT) -> list[str]:
+    expected = " -> ".join(PUBLICATION_STATES)
+    errors: list[str] = []
+    paths = [
+        Path("skills/harmonyos-release-check/SKILL.md"),
+        Path("skills/harmonyos-release-check/references/release-gate.md"),
+        Path("docs/architecture.md"),
+    ]
+    for relative in paths:
+        text = (repo_root / relative).read_text(encoding="utf-8")
+        if expected not in text:
+            errors.append(f"{relative.as_posix()}: publication state order must be {expected}")
+        if "BUILD_READY -> SIGNING_READY" in text:
+            errors.append(f"{relative.as_posix()}: contains obsolete build-before-signing order")
+    signing = (repo_root / "skills" / "harmonyos-release-signing" / "SKILL.md").read_text(encoding="utf-8")
+    if "Do not run formal `assembleApp`" not in signing or "Run the project's Release build" in signing:
+        errors.append("harmonyos-release-signing: must not run the formal Release build")
+    release_check = (repo_root / "skills" / "harmonyos-release-check" / "SKILL.md").read_text(encoding="utf-8")
+    if "only release orchestrator" not in release_check.casefold() or "assembleApp" not in release_check:
+        errors.append("harmonyos-release-check: must be the sole formal Release build orchestrator")
+    folded_release_check = release_check.casefold()
+    required_preflight = ("correct repository root", "intended head", "tracked and staged scope", "credential boundary")
+    if "before entering `signing_ready`" not in folded_release_check or any(item not in folded_release_check for item in required_preflight):
+        errors.append("harmonyos-release-check: missing distinct pre-SIGNING_READY Git preflight contract")
+    if "does not replace the later `GIT_CLEAN`" not in release_check:
+        errors.append("harmonyos-release-check: preflight must remain distinct from final GIT_CLEAN")
+    signing_sections = {
+        heading: signing.split(heading, 1)[1].split("\n## ", 1)[0]
+        for heading in ("## Workflow", "## Output contract", "## Validation")
+        if heading in signing
+    }
+    if len(signing_sections) != 3:
+        errors.append("harmonyos-release-signing: Workflow, Output contract, and Validation are required")
+    elif "SIGNING_READY" not in signing_sections["## Workflow"]:
+        errors.append("harmonyos-release-signing: Workflow must terminate at SIGNING_READY")
+    for heading in ("## Output contract", "## Validation"):
+        if heading in signing_sections and not all(term in signing_sections[heading] for term in ("formal", "final APP", "smoke")):
+            errors.append(f"harmonyos-release-signing: {heading[3:]} must exclude downstream build/verification/smoke gates")
+    return errors
+
+
 def validate_repository(repo_root: Path = REPO_ROOT) -> list[str]:
     _, manifest_errors = validate_manifest(repo_root)
     _, case_errors = validate_cases(repo_root)
-    errors = manifest_errors + case_errors + validate_evidence_schema(repo_root) + validate_routing(repo_root)
+    errors = manifest_errors + case_errors + validate_evidence_schema(repo_root) + validate_routing(repo_root) + validate_publication_state_machine(repo_root)
     return sorted(set(errors))
 
 
@@ -242,7 +284,7 @@ def main() -> int:
     cases, _ = validate_cases()
     graph, _ = validate_manifest()
     edge_count = sum(len(dependencies) for dependencies in graph.values())
-    print(f"CONTRACT_EVAL_PASS: {len(cases)} cases; dependency DAG {len(graph)} nodes/{edge_count} edges; routing and evidence schema valid.")
+    print(f"CONTRACT_EVAL_PASS: {len(cases)} cases; dependency DAG {len(graph)} nodes/{edge_count} edges; routing, state machine, and evidence schema valid.")
     return 0
 
 

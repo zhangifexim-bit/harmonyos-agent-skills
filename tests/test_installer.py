@@ -46,12 +46,34 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertFalse(destination.exists())
 
+    def test_what_if_resolves_dependency_closure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "skills"
+            result = self.invoke(destination, "-Skill", "harmonyos-release-check", "-WhatIf")
+            self.assertEqual(0, result.returncode, result.stderr)
+            output = result.stdout + result.stderr
+            self.assertIn("harmonyos-release-signing", output)
+            self.assertIn("harmonyos-release-check", output)
+            self.assertFalse(destination.exists())
+
     def test_selective_skill(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             destination = Path(temporary) / "skills"
             result = self.invoke(destination, "-Skill", "harmonyos-release-check")
             self.assertEqual(0, result.returncode, result.stderr)
-            self.assertEqual(["harmonyos-release-check"], [path.name for path in destination.iterdir()])
+            self.assertEqual(
+                {"harmonyos-release-check", "harmonyos-release-signing"},
+                {path.name for path in destination.iterdir()},
+            )
+
+    def test_existing_owned_dependency_is_reused(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "skills"
+            self.assertEqual(0, self.invoke(destination, "-Skill", "harmonyos-release-signing").returncode)
+            result = self.invoke(destination, "-Skill", "harmonyos-release-check")
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("Dependency already installed", result.stdout)
+            self.assertTrue((destination / "harmonyos-release-check" / "SKILL.md").is_file())
 
     def test_path_with_spaces(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -77,6 +99,23 @@ class InstallerTests(unittest.TestCase):
             result = self.invoke(destination, "-Skill", "harmonyos-build-doctor", "-Update")
             self.assertEqual(0, result.returncode, result.stderr)
 
+    def test_update_resolves_missing_dependency(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "skills"
+            self.assertEqual(0, self.invoke(destination, "-Skill", "harmonyos-release-check").returncode)
+            self.assertEqual(
+                0,
+                self.invoke(destination, "-Uninstall", "-UninstallSkill", "harmonyos-release-check").returncode,
+            )
+            self.assertEqual(
+                0,
+                self.invoke(destination, "-Uninstall", "-UninstallSkill", "harmonyos-release-signing").returncode,
+            )
+            result = self.invoke(destination, "-Skill", "harmonyos-release-check", "-Update")
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertTrue((destination / "harmonyos-release-signing" / "SKILL.md").is_file())
+            self.assertTrue((destination / "harmonyos-release-check" / "SKILL.md").is_file())
+
     def test_uninstall_rejects_unowned_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             destination = Path(temporary) / "skills"
@@ -94,6 +133,29 @@ class InstallerTests(unittest.TestCase):
             result = self.invoke(destination, "-Uninstall", "-UninstallSkill", "harmonyos-project-audit")
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertFalse((destination / "harmonyos-project-audit").exists())
+
+    def test_uninstall_blocks_required_dependency(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "skills"
+            self.assertEqual(0, self.invoke(destination, "-Skill", "harmonyos-release-check").returncode)
+            result = self.invoke(destination, "-Uninstall", "-UninstallSkill", "harmonyos-release-signing")
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("depends on it", result.stderr)
+            self.assertTrue((destination / "harmonyos-release-signing").is_dir())
+
+    def test_uninstall_dependency_and_dependent_together(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "skills"
+            self.assertEqual(0, self.invoke(destination, "-Skill", "harmonyos-release-check").returncode)
+            result = self.invoke(
+                destination,
+                "-Uninstall",
+                "-UninstallSkill",
+                "harmonyos-release-signing,harmonyos-release-check",
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertFalse((destination / "harmonyos-release-signing").exists())
+            self.assertFalse((destination / "harmonyos-release-check").exists())
 
     def test_invalid_destination_file(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

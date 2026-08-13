@@ -3,17 +3,19 @@
 ## Required state order
 
 ```text
-BUILD_READY -> SIGNING_READY -> ARTIFACT_VERIFIED -> SMOKE_TESTED -> GIT_CLEAN -> READY_FOR_PUBLICATION
+SIGNING_READY -> BUILD_READY -> ARTIFACT_VERIFIED -> SMOKE_TESTED -> GIT_CLEAN -> READY_FOR_PUBLICATION
 ```
 
 No state may be inferred from a later state. Each transition needs independent evidence.
+
+Before the state machine starts, run a separate Git preflight that proves the correct root, intended HEAD, tracked/staged scope, and credential boundary. This pre-build audit does not satisfy the later `GIT_CLEAN` state.
 
 | Gate | PASS evidence | Fail closed when |
 | --- | --- | --- |
 | Git scope | Intended HEAD, reviewed diff, no credentials | Wrong root, unrelated changes, sensitive files |
 | Release config | Expected product, Release build mode, Release signing binding | Missing/ambiguous binding or Debug identity |
-| Build | Release assembleApp exits zero | Failed task or unknown artifact provenance |
 | Signing | Expected SignHap/SignApp evidence or documented equivalent | Skipped/failed/ambiguous signing |
+| Build | Release assembleApp exits zero after signing readiness | Failed task, duplicate formal build, or unknown artifact provenance |
 | Final artifact | Exactly one fresh `.app` tied to the build | Stale or multiple candidates |
 | Signature | Official `verify-app` exits zero | Nonzero, unsupported syntax, missing outputs |
 | Identity/profile | Expected certificate, Release profile, expected bundle | Mismatch, expired/invalid, Debug, unknown |

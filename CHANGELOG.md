@@ -18,6 +18,9 @@ All notable changes to this project will be documented in this file. The format 
 - Added a unique routing and handoff contract for all four Skills.
 - Hardened Build Doctor error transitions and ambiguous DevEco handling.
 - Hardened signing reachable-history incidents and Release Check artifact/state-machine identity.
+- Added dependency-closure installation/update behavior and dependent-aware uninstall protection.
+- Made Release Signing readiness-only and Release Check the sole formal build orchestrator.
+- Changed live evaluation grading to canonical action IDs and added Git metadata auditing.
 
 ## [0.1.0] - 2026-08-12
 

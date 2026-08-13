@@ -61,7 +61,7 @@ Release Signing 是 leaf；Release Check 是唯一 release orchestrator。完整
 .\install.ps1 -All -WhatIf
 ```
 
-`-Update` 与 `-Uninstall` 只处理带有本仓库 ownership marker 的安装；发现本地修改就停止。它们不会修改 `AGENTS.md` 或用户项目。
+选择 Skill 时会安装或更新其完整依赖闭包；例如安装 Release Check 会同时安装 Release Signing。`-Update` 与 `-Uninstall` 只处理带有本仓库 ownership marker 的安装；发现本地修改就停止。如果仍有已安装 Skill 依赖某项，卸载器会拒绝删除该依赖。安装器不会修改 `AGENTS.md` 或用户项目。
 
 仍可手工复制单个自包含 Skill：
 
@@ -127,9 +127,11 @@ python scripts\run_behavioral_evals.py --case build-001-node-missing
 python scripts\validate_skills.py
 python -m unittest discover -s tests -v
 python scripts\scan_private_markers.py --generic-only
+python scripts\scan_git_metadata.py
 ```
 
 审计私有来源时，仅在运行时通过 `--marker` 或 `--marker-file` 传入私有标识，绝不能提交到仓库。
+Git 元数据审计覆盖可达 commit 的 author、committer 与 message、annotated tag 的 tagger 与 message，以及 branch/tag ref 名称；命中值始终隐藏。
 
 ## 仓库结构
 

@@ -15,7 +15,7 @@ param(
     [Parameter(Mandatory = $true, ParameterSetName = 'Uninstall')]
     [switch]$Uninstall,
 
-    [Parameter(ParameterSetName = 'Uninstall')]
+    [Parameter(ParameterSetName = 'Uninstall', ValueFromRemainingArguments = $true)]
     [string[]]$UninstallSkill,
 
     [string]$Destination
@@ -109,21 +109,68 @@ function Get-SelectedSkills {
     if (-not $Names -or $Names.Count -eq 0) {
         return $known
     }
-    foreach ($name in $Names) {
+    $expandedNames = @($Names | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    foreach ($name in $expandedNames) {
         if ($known -notcontains $name) {
             throw "Unknown skill '$name'. Valid skills: $($known -join ', ')."
         }
     }
-    return @($Names | Select-Object -Unique)
+    return @($expandedNames | Select-Object -Unique)
+}
+
+function Add-SkillDependencyClosure {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)]$EntriesByName,
+        [Parameter(Mandatory = $true)]$VisitState,
+        [Parameter(Mandatory = $true)]$Ordered
+    )
+
+    if ($VisitState[$Name] -eq 'complete') {
+        return
+    }
+    if ($VisitState[$Name] -eq 'visiting') {
+        throw "Dependency cycle detected at '$Name'."
+    }
+    $entry = $EntriesByName[$Name]
+    if ($null -eq $entry) {
+        throw "Unknown dependency '$Name' in skills-manifest.json."
+    }
+    $VisitState[$Name] = 'visiting'
+    foreach ($dependency in @($entry.dependencies)) {
+        Add-SkillDependencyClosure -Name $dependency -EntriesByName $EntriesByName -VisitState $VisitState -Ordered $Ordered
+    }
+    $VisitState[$Name] = 'complete'
+    [void]$Ordered.Add($Name)
+}
+
+function Resolve-DependencyClosure {
+    param($Manifest, [string[]]$Names)
+
+    $entriesByName = @{}
+    foreach ($entry in $Manifest.skills) {
+        $entriesByName[$entry.name] = $entry
+    }
+    $visitState = @{}
+    $ordered = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($name in $Names) {
+        Add-SkillDependencyClosure -Name $name -EntriesByName $entriesByName -VisitState $visitState -Ordered $ordered
+    }
+    return @($ordered)
 }
 
 function Install-SkillSafely {
-    param([string]$Name, [string]$SkillsDestination, [bool]$AllowUpdate, $Manifest)
+    param([string]$Name, [string]$SkillsDestination, [bool]$AllowUpdate, [bool]$AllowExistingDependency, $Manifest)
 
     $source = Join-Path (Join-Path $ScriptRoot 'skills') $Name
     $target = Join-Path $SkillsDestination $Name
     $exists = Test-Path -LiteralPath $target
     if ($exists -and -not $AllowUpdate) {
+        if ($AllowExistingDependency) {
+            [void](Assert-UnmodifiedInstall -SkillPath $target)
+            Write-Output "Dependency already installed: $Name"
+            return
+        }
         throw "Target '$target' already exists. Nothing was overwritten."
     }
     if ($exists) {
@@ -183,7 +230,28 @@ if ($PSCmdlet.ParameterSetName -eq 'List') {
 
 if ($PSCmdlet.ParameterSetName -eq 'Uninstall') {
     $names = Get-SelectedSkills -Manifest $manifest -Names $UninstallSkill -SelectAll ($null -eq $UninstallSkill -or $UninstallSkill.Count -eq 0)
+    $removalSet = @{}
     foreach ($name in $names) {
+        $removalSet[$name] = $true
+    }
+    foreach ($entry in $manifest.skills) {
+        if ($removalSet.ContainsKey($entry.name)) {
+            continue
+        }
+        $dependentPath = Join-Path $skillsDestination $entry.name
+        if (-not (Test-Path -LiteralPath $dependentPath -PathType Container)) {
+            continue
+        }
+        $dependentClosure = Resolve-DependencyClosure -Manifest $manifest -Names @($entry.name)
+        foreach ($dependency in @($dependentClosure | Where-Object { $_ -ne $entry.name })) {
+            if ($removalSet.ContainsKey($dependency)) {
+                throw "Cannot uninstall '$dependency' while installed skill '$($entry.name)' depends on it. Uninstall the dependent skill in the same operation."
+            }
+        }
+    }
+    $orderedRemoval = @(Resolve-DependencyClosure -Manifest $manifest -Names $names | Where-Object { $removalSet.ContainsKey($_) })
+    [array]::Reverse($orderedRemoval)
+    foreach ($name in $orderedRemoval) {
         $target = Join-Path $skillsDestination $name
         if (-not (Test-Path -LiteralPath $target -PathType Container)) {
             throw "Skill '$name' is not installed at '$target'."
@@ -198,6 +266,14 @@ if ($PSCmdlet.ParameterSetName -eq 'Uninstall') {
 }
 
 $selected = Get-SelectedSkills -Manifest $manifest -Names $Skill -SelectAll $All.IsPresent
+$installOrder = Resolve-DependencyClosure -Manifest $manifest -Names $selected
+if ($WhatIfPreference) {
+    Write-Output "Resolved dependency closure: $($installOrder -join ', ')"
+}
+$selectedSet = @{}
 foreach ($name in $selected) {
-    Install-SkillSafely -Name $name -SkillsDestination $skillsDestination -AllowUpdate $Update.IsPresent -Manifest $manifest
+    $selectedSet[$name] = $true
+}
+foreach ($name in $installOrder) {
+    Install-SkillSafely -Name $name -SkillsDestination $skillsDestination -AllowUpdate $Update.IsPresent -AllowExistingDependency (-not $selectedSet.ContainsKey($name)) -Manifest $manifest
 }

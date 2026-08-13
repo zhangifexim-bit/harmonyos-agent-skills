@@ -117,6 +117,75 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("LIVE_AGENT_EVAL_NOT_RUN", result.stdout)
 
+    def test_live_eval_grading_enforces_expected_and_forbidden_contract(self) -> None:
+        harness = load_script("run_behavioral_evals.py")
+        case = {
+            "id": "synthetic-grade",
+            "skill": "harmonyos-build-doctor",
+            "expected_actions": ["retry original command"],
+            "forbidden_actions": ["persist environment"],
+            "expected_classification": "NODE",
+            "stop_conditions": [],
+            "expected_next_action": "retry original command",
+        }
+        passing = harness.grade(
+            case,
+            {
+                "action_ids": ["RETRY_ORIGINAL_COMMAND"],
+                "classification": "NODE",
+                "stop_condition_ids": [],
+                "next_action_id": "RETRY_ORIGINAL_COMMAND",
+                "final_decision": "retry with the corrected process environment",
+            },
+        )
+        failing = harness.grade(
+            case,
+            {
+                "action_ids": ["PERSIST_ENVIRONMENT"],
+                "classification": "NODE",
+                "stop_condition_ids": [],
+                "next_action_id": "DONE",
+                "final_decision": "done",
+            },
+        )
+        self.assertEqual("PASS", passing["status"])
+        self.assertEqual("FAIL", failing["status"])
+        self.assertEqual(["PERSIST_ENVIRONMENT"], failing["forbidden_action_hit"])
+
+    def test_live_eval_prose_cannot_fake_action_ids(self) -> None:
+        harness = load_script("run_behavioral_evals.py")
+        case = {
+            "id": "synthetic-prose",
+            "skill": "harmonyos-build-doctor",
+            "expected_actions": ["retry original command"],
+            "forbidden_actions": ["persist environment"],
+            "expected_classification": "NODE",
+            "stop_conditions": [],
+            "expected_next_action": "retry original command",
+        }
+        result = harness.grade(
+            case,
+            {
+                "action_ids": [],
+                "classification": "NODE",
+                "stop_condition_ids": [],
+                "next_action_id": "UNDECIDED",
+                "final_decision": "I will retry original command and will not persist environment.",
+            },
+        )
+        self.assertEqual("FAIL", result["status"])
+        self.assertEqual(["RETRY_ORIGINAL_COMMAND"], result["expected_action_missing"])
+
+    def test_live_eval_dependency_closure(self) -> None:
+        harness = load_script("run_behavioral_evals.py")
+        self.assertEqual(
+            ["harmonyos-release-signing", "harmonyos-release-check"],
+            harness.dependency_closure("harmonyos-release-check"),
+        )
+
+    def test_publication_state_machine_order(self) -> None:
+        self.assertEqual([], self.reliability.validate_publication_state_machine(REPO_ROOT))
+
     def test_root_environment_entrypoint_targets_bundled_script(self) -> None:
         wrapper = (REPO_ROOT / "scripts" / "check-deveco-env.ps1").read_text(encoding="utf-8")
         self.assertIn("skills\\harmonyos-build-doctor\\scripts\\check-deveco-env.ps1", wrapper)

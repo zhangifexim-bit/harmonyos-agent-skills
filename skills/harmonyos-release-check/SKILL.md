@@ -31,9 +31,9 @@ Release Check is the only release orchestrator. It may call `$harmonyos-release-
 
 ## Workflow
 
-1. Audit Git scope, HEAD, staged/dirty state, ignored outputs, and credential boundaries.
-2. Reuse valid `SIGNING_READY` evidence when available. Otherwise audit Release configuration and product/signing binding with `$harmonyos-release-signing` once.
-3. Run the project-supported Release `assembleApp` command. Capture exact command, exit code, and completed build/sign tasks.
+1. Before entering `SIGNING_READY`, run a distinct Git preflight: confirm the correct repository root, intended HEAD, tracked and staged scope, ignored outputs, and credential boundary. Stop on any mismatch.
+2. Reuse valid `SIGNING_READY` evidence when available. Otherwise audit Release configuration and product/signing binding with `$harmonyos-release-signing` once. Do not build until `SIGNING_READY` is established.
+3. As the only formal Release build orchestrator, run the project-supported Release `assembleApp` command exactly once. Capture exact command, exit code, and completed build/sign tasks; do not ask Release Signing to build first.
 4. Confirm SignHap and SignApp evidence when the local Hvigor version exposes those task names.
 5. Record the build start/end timestamps, discover pre-existing and post-build outputs, and resolve exactly one newly produced final `.app`; reject stale or ambiguous candidates.
 6. Read [the hap-sign-tool verification guide](references/hap-sign-tool-verification.md), inspect local help, and run `verify-app` into a new temporary directory.
@@ -52,10 +52,12 @@ Use [the release gate matrix](references/release-gate.md) to classify each stage
 Advance only in order:
 
 ```text
-BUILD_READY -> SIGNING_READY -> ARTIFACT_VERIFIED -> SMOKE_TESTED -> GIT_CLEAN -> READY_FOR_PUBLICATION
+SIGNING_READY -> BUILD_READY -> ARTIFACT_VERIFIED -> SMOKE_TESTED -> GIT_CLEAN -> READY_FOR_PUBLICATION
 ```
 
 Every transition requires its own evidence. Missing, failed, stale, or mismatched evidence blocks the next state.
+
+The preflight Git gate occurs before `SIGNING_READY`; it does not replace the later `GIT_CLEAN` transition after the build, verification, and smoke test.
 
 ## Decision rules
 
