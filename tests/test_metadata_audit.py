@@ -82,7 +82,6 @@ class MetadataAuditTests(unittest.TestCase):
             "schema_version": "1.0",
             "allowed_control_identities": [
                 {"name": "Maintainer Bot", "email": "maintainer@users.noreply.github.com"},
-                {"name": "GitHub", "email": "noreply@github.com"},
             ],
             "allowed_tag_identities": [
                 {"name": "Maintainer Bot", "email": "maintainer@users.noreply.github.com"}
@@ -141,8 +140,50 @@ class MetadataAuditTests(unittest.TestCase):
 
     def test_repository_publication_policy_passes(self) -> None:
         policy = self.scanner.load_publication_policy(REPO_ROOT / "policies" / "publication-identity.json")
-        findings, _ = self.scanner.publication_identity_findings(REPO_ROOT, policy, "HEAD", "v0.2.0")
+        candidate = self.scanner.resolve_ci_candidate_ref()
+        findings, _ = self.scanner.publication_identity_findings(REPO_ROOT, policy, candidate, "v0.2.0")
         self.assertEqual([], findings)
+
+    def test_pull_request_uses_real_head_not_synthetic_merge_head(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            self.initialize_repo(repo)
+            base = self.commit_file(repo, "base.txt", "base\n", "base", "Maintainer Bot", "maintainer@users.noreply.github.com")
+            subprocess.run(["git", "switch", "-c", "feature"], cwd=repo, check=True, capture_output=True)
+            candidate = self.commit_file(repo, "feature.txt", "feature\n", "feature", "Maintainer Bot", "maintainer@users.noreply.github.com")
+            subprocess.run(["git", "switch", "main"], cwd=repo, check=True, capture_output=True)
+            merge_environment = dict(os.environ)
+            merge_environment.update(
+                {
+                    "GIT_AUTHOR_NAME": "Synthetic Merge Bot",
+                    "GIT_AUTHOR_EMAIL": "merge-bot@public.test",
+                    "GIT_COMMITTER_NAME": "Synthetic Merge Bot",
+                    "GIT_COMMITTER_EMAIL": "merge-bot@public.test",
+                }
+            )
+            subprocess.run(
+                ["git", "merge", "--no-ff", "feature", "-m", "synthetic pull request merge"],
+                cwd=repo,
+                env=merge_environment,
+                check=True,
+                capture_output=True,
+            )
+            synthetic_merge = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True
+            ).stdout.strip()
+            self.assertNotEqual(candidate, synthetic_merge)
+            direct_findings, _ = self.scanner.publication_identity_findings(repo, self.synthetic_policy(), "HEAD", base)
+            self.assertTrue(direct_findings)
+            resolved = self.scanner.resolve_ci_candidate_ref(
+                {"GITHUB_ACTIONS": "true", "PUBLICATION_CANDIDATE_REF": candidate}
+            )
+            self.assertEqual(candidate, resolved)
+            findings, _ = self.scanner.publication_identity_findings(repo, self.synthetic_policy(), resolved, base)
+            self.assertEqual([], findings)
+
+    def test_github_actions_candidate_resolution_fails_closed_without_event_sha(self) -> None:
+        with self.assertRaisesRegex(ValueError, "PUBLICATION_CANDIDATE_REF"):
+            self.scanner.resolve_ci_candidate_ref({"GITHUB_ACTIONS": "true"})
 
     def test_publication_base_must_be_ancestor(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

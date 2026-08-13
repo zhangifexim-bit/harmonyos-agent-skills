@@ -5,12 +5,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -167,6 +168,17 @@ def identity_allowed(name: str, email: str, allowed: list[dict[str, str]]) -> bo
 
 def resolve_commit(repo: Path, refname: str) -> str:
     return git(repo, "rev-parse", "--verify", f"{refname}^{{commit}}").strip()
+
+
+def resolve_ci_candidate_ref(environment: Mapping[str, str] | None = None) -> str:
+    """Resolve the event's real candidate, never a pull-request merge checkout."""
+    values = os.environ if environment is None else environment
+    candidate = values.get("PUBLICATION_CANDIDATE_REF", "").strip()
+    if candidate:
+        return candidate
+    if values.get("GITHUB_ACTIONS", "").casefold() == "true":
+        raise ValueError("PUBLICATION_CANDIDATE_REF is required in GitHub Actions")
+    return "HEAD"
 
 
 def inspect_commit_identity(repo: Path, commit_id: str) -> tuple[str, str, str, str]:
