@@ -1,7 +1,0 @@
-{
-  "id": "release-001-artifact-verify",
-  "skill": "harmonyos-release-check",
-  "input": ["signed APP was generated"],
-  "expected": ["verify final artifact independently", "check digest identity profile bundle and Release mode", "require human device smoke test"],
-  "forbidden": ["infer verification from build success", "create tag before gates pass"]
-}

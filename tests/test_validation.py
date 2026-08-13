@@ -26,6 +26,7 @@ class ValidationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.validator = load_script("validate_skills.py")
+        cls.reliability = load_script("validate_reliability.py")
         cls.scanner = load_script("scan_private_markers.py")
 
     def test_repository_validation_passes(self) -> None:
@@ -60,24 +61,61 @@ class ValidationTests(unittest.TestCase):
         self.assertIn((1, "personal-windows-path"), self.scanner.scan_text(path, []))
 
     def test_decision_case_contracts(self) -> None:
-        expected_ids = {
-            "build-001-node-missing",
-            "build-002-sdk-env-missing",
-            "build-003-java-enoent",
-            "signing-001-ciphertext",
-            "signing-002-git-boundary",
-            "release-001-artifact-verify",
+        cases, errors = self.reliability.validate_cases(REPO_ROOT)
+        self.assertEqual([], errors)
+        self.assertEqual(30, len(cases))
+        self.assertEqual(30, len({case["id"] for case in cases}))
+
+    def test_skill_dependency_graph_is_dag(self) -> None:
+        graph, errors = self.reliability.validate_manifest(REPO_ROOT)
+        self.assertEqual([], errors)
+        self.assertEqual(["harmonyos-release-signing"], graph["harmonyos-release-check"])
+        self.assertEqual([], graph["harmonyos-release-signing"])
+        self.assertEqual([], self.reliability.validate_dag(graph))
+        self.assertTrue(self.reliability.validate_dag({"a": ["b"], "b": ["a"]}))
+
+    def test_routing_contract_is_unique_and_non_recursive(self) -> None:
+        self.assertEqual([], self.reliability.validate_routing(REPO_ROOT))
+
+    def test_evidence_schema_accepts_valid_document(self) -> None:
+        document = {
+            "schema_version": "1.0",
+            "skill": "harmonyos-build-doctor",
+            "status": "PASS",
+            "classification": "NODE",
+            "evidence": [{"kind": "NODE_VERSION", "result": "synthetic version accepted", "source": "bundled runtime", "path_redacted": True}],
+            "mutations": ["process environment only"],
+            "persistent_changes": False,
+            "retry_performed": True,
+            "next_action": None,
         }
-        cases = []
-        for case_file in sorted((REPO_ROOT / "tests" / "cases").glob("*.json")):
-            cases.append(json.loads(case_file.read_text(encoding="utf-8")))
-        self.assertEqual(expected_ids, {case["id"] for case in cases})
-        for case in cases:
-            self.assertTrue(case["input"])
-            self.assertTrue(case["expected"])
-            self.assertTrue(case["forbidden"])
-            skill_file = REPO_ROOT / "skills" / case["skill"] / "SKILL.md"
-            self.assertTrue(skill_file.is_file(), case["id"])
+        self.assertEqual([], self.reliability.validate_evidence_document(document, REPO_ROOT))
+
+    def test_evidence_schema_rejects_secret_shaped_extra_field(self) -> None:
+        document = {
+            "schema_version": "1.0",
+            "skill": "harmonyos-release-signing",
+            "status": "PASS",
+            "classification": "SIGNING",
+            "evidence": [],
+            "mutations": [],
+            "persistent_changes": False,
+            "retry_performed": False,
+            "next_action": None,
+            "password": "synthetic-forbidden-field",
+        }
+        self.assertTrue(self.reliability.validate_evidence_document(document, REPO_ROOT))
+
+    def test_live_eval_harness_defaults_to_not_run(self) -> None:
+        result = __import__("subprocess").run(
+            [sys.executable, str(REPO_ROOT / "scripts" / "run_behavioral_evals.py"), "--case", "build-001-node-missing"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("LIVE_AGENT_EVAL_NOT_RUN", result.stdout)
 
     def test_root_environment_entrypoint_targets_bundled_script(self) -> None:
         wrapper = (REPO_ROOT / "scripts" / "check-deveco-env.ps1").read_text(encoding="utf-8")
