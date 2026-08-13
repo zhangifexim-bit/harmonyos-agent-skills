@@ -1,0 +1,37 @@
+{
+  app: {
+    signingConfigs: [
+      {
+        name: "release-example",
+        type: "HarmonyOS",
+        material: {
+          certpath: "<outside-repository>/release.cer",
+          storePassword: "${SIGNING_STORE_PASSWORD}",
+          keyAlias: "<release-key-alias>",
+          keyPassword: "${SIGNING_KEY_PASSWORD}",
+          profile: "<outside-repository>/release.p7b",
+          storeFile: "<outside-repository>/release.p12"
+        }
+      }
+    ],
+    products: [
+      {
+        name: "default",
+        signingConfig: "release-example",
+        compatibleSdkVersion: "<project-api>",
+        runtimeOS: "HarmonyOS"
+      }
+    ],
+    buildModeSet: [
+      { name: "debug" },
+      { name: "release" }
+    ]
+  },
+  modules: [
+    {
+      name: "entry",
+      srcPath: "./entry",
+      targets: [{ name: "default", applyToProducts: ["default"] }]
+    }
+  ]
+}

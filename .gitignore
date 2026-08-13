@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+.coverage
+.pytest_cache/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# HarmonyOS and DevEco outputs
+.hvigor/
+oh_modules/
+build/
+*.hap
+*.hsp
+*.app
+
+# Signing and credential material
+*.p12
+*.p7b
+*.pem
+*.key
+*.jks
+*.keystore
+*.cer
+*.crt
+*.pfx
+*.private.patch
+*.signing.patch
+
+# Local private scanner inputs and reports
+*.private-markers
+*.private-markers.*
+private-scan-report*
+local.properties

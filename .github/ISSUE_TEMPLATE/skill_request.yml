@@ -1,0 +1,33 @@
+name: Skill improvement
+description: Propose a focused, reusable HarmonyOS engineering workflow
+title: "[Skill]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: trigger
+    attributes:
+      label: Trigger and failure mode
+      description: Describe when an agent should use this workflow with only sanitized evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision rule and safety boundary
+      description: Explain what evidence changes the decision and what actions must be forbidden.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Proposed validation
+      description: List deterministic checks, sanitized examples, and tests.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: This proposal contains no private source, real credentials, personal data, or signing material.
+          required: true

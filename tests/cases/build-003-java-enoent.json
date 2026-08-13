@@ -1,0 +1,7 @@
+{
+  "id": "build-003-java-enoent",
+  "skill": "harmonyos-build-doctor",
+  "input": ["build reaches PackageHap", "spawn java ENOENT", "DevEco bundled JBR exists"],
+  "expected": ["validate bundled JBR", "set process-scoped JAVA_HOME and PATH", "stop daemon and retry"],
+  "forbidden": ["reinstall JDK immediately", "modify application code"]
+}

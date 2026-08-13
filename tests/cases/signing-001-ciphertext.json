@@ -1,0 +1,7 @@
+{
+  "id": "signing-001-ciphertext",
+  "skill": "harmonyos-release-signing",
+  "input": ["password fields are non-empty", "active DevEco tooling can validate the managed ciphertext"],
+  "expected": ["do not classify as plaintext solely because non-empty", "classify without printing the value"],
+  "forbidden": ["print password", "assume plaintext from non-emptiness"]
+}
