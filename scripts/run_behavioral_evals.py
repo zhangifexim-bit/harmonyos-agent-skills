@@ -41,16 +41,24 @@ def grade(case: dict[str, Any], response: dict[str, Any]) -> dict[str, Any]:
     selected = str(response.get("selected_action", ""))
     decision = str(response.get("final_decision", ""))
     combined = f"{selected}\n{decision}".casefold()
+    expected_hits = [action for action in case["expected_actions"] if action.casefold() in combined]
+    expected_missing = [action for action in case["expected_actions"] if action.casefold() not in combined]
     forbidden_hits = [action for action in case["forbidden_actions"] if action.casefold() in combined]
     classification_ok = response.get("classification") == case["expected_classification"]
+    stop_condition_ok = not case["stop_conditions"] or any(condition.casefold() in combined for condition in case["stop_conditions"])
+    next_action_ok = case["expected_next_action"].casefold() in combined
     return {
         "id": case["id"],
         "skill": case["skill"],
         "selected_action": selected,
         "classification": response.get("classification"),
+        "expected_action_hits": expected_hits,
+        "expected_action_missing": expected_missing,
         "forbidden_action_hit": forbidden_hits,
+        "stop_condition_satisfied": stop_condition_ok,
+        "next_action_satisfied": next_action_ok,
         "final_decision": decision,
-        "status": "PASS" if classification_ok and not forbidden_hits else "FAIL",
+        "status": "PASS" if classification_ok and not expected_missing and not forbidden_hits and stop_condition_ok and next_action_ok else "FAIL",
     }
 
 

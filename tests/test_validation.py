@@ -117,6 +117,23 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("LIVE_AGENT_EVAL_NOT_RUN", result.stdout)
 
+    def test_live_eval_grading_enforces_expected_and_forbidden_contract(self) -> None:
+        harness = load_script("run_behavioral_evals.py")
+        case = {
+            "id": "synthetic-grade",
+            "skill": "harmonyos-build-doctor",
+            "expected_actions": ["retry original command"],
+            "forbidden_actions": ["persist environment"],
+            "expected_classification": "NODE",
+            "stop_conditions": [],
+            "expected_next_action": "retry original command",
+        }
+        passing = harness.grade(case, {"selected_action": "retry original command", "classification": "NODE", "final_decision": "retry original command"})
+        failing = harness.grade(case, {"selected_action": "persist environment", "classification": "NODE", "final_decision": "done"})
+        self.assertEqual("PASS", passing["status"])
+        self.assertEqual("FAIL", failing["status"])
+        self.assertEqual(["persist environment"], failing["forbidden_action_hit"])
+
     def test_root_environment_entrypoint_targets_bundled_script(self) -> None:
         wrapper = (REPO_ROOT / "scripts" / "check-deveco-env.ps1").read_text(encoding="utf-8")
         self.assertIn("skills\\harmonyos-build-doctor\\scripts\\check-deveco-env.ps1", wrapper)

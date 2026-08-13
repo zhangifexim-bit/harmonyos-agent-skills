@@ -14,7 +14,7 @@ This blocking, offline check validates the 30 synthetic cases, unique routing, r
 
 ## Level 2: live agent evals
 
-[`../scripts/run_behavioral_evals.py`](../scripts/run_behavioral_evals.py) creates a fresh temporary workspace per case, installs only the selected Skill there, sets an isolated `CODEX_HOME`, and requests a compact JSON decision. It stores selected action, classification, forbidden-action hits, final decision, and PASS/FAIL only. It does not request or store chain-of-thought.
+[`../scripts/run_behavioral_evals.py`](../scripts/run_behavioral_evals.py) creates a fresh temporary workspace per case, installs only the selected Skill there, sets an isolated `CODEX_HOME`, and requests a compact JSON decision. It fail-closes on missing expected actions/next action, classification mismatch, missing required stop conditions, or any forbidden-action hit. It stores those contract results, selected action, classification, final decision, and PASS/FAIL only. It does not request or store chain-of-thought.
 
 There is intentionally no implicit runner command. CLI syntax, authentication, subscription availability, sandbox flags, and cost can change. Review current official OpenAI documentation and local CLI help, then supply a non-interactive command that writes JSON to `{output_file}`:
 
