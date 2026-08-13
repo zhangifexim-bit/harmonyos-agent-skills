@@ -2,24 +2,32 @@
 
 ## Supported workflow
 
-- Windows PowerShell 5.1 or PowerShell 7 for the DevEco environment probe.
+- Windows PowerShell 5.1 or PowerShell 7 for the DevEco environment probe. PowerShell 7 is supported by design but was not verified in the field evidence below.
 - Python 3.10 or newer for repository validation and tests.
-- Git for tracked/staged/history checks.
+- Git for tracked, staged, history, and publication-identity checks.
 - HarmonyOS application projects built with DevEco Studio and Hvigor.
 
 The documentation and Git checks are broadly platform-neutral. The bundled environment probe is Windows-specific because it checks Windows environment scopes, standard installation directories, and registry metadata.
 
 ## Tested environments
 
-This table records evidence, not a universal support promise.
+This evidence was collected on `2026-08-13`. It records one sanitized installation and does not claim universal compatibility.
 
-| Status | OS | DevEco Studio | HarmonyOS API | SDK | Bundled Node | Bundled JBR | Hvigor | Scope |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Field-verified sanitized environment | Windows | 6.1.1 Release | 24 | 6.1.1.125 | 18.20.1 | 21.0.8 | 6.24.3 | Read-only environment discovery and Release workflow evidence |
-| Community reported | — | — | — | — | — | — | — | No reports recorded yet |
-| Untested | Other combinations | Version-sensitive | Version-sensitive | Version-sensitive | Version-sensitive | Version-sensitive | Version-sensitive | Must be discovered locally |
+| Status | OS/build | Shell | Python / Git | DevEco Studio | HarmonyOS API / SDK | Bundled Node / JBR | Hvigor / HDC | Signing tool | Evidence scope |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Field-verified sanitized environment | Windows NT 10.0, build 26200.9168, 25H2, x64 | Windows PowerShell 5.1.26100.9168 | Python 3.13.2 / Git 2.53.0.windows.3 | 6.1.1.290; build 243.24978.46.36.611290 | API 24 / SDK 6.1.1.125 | Node 18.20.1 / OpenJDK 21.0.8 | Hvigor 6.24.3 / HDC 3.2.0d | `hap-sign-tool` present | Local version/help output, registry metadata, installed SDK package metadata, and read-only probe |
+| Community reported | — | — | — | — | — | — | — | — | No reports recorded yet |
+| Untested | Other combinations | Version-sensitive | Version-sensitive | Version-sensitive | Version-sensitive | Version-sensitive | Version-sensitive | Version-sensitive | Must be discovered locally |
 
-The verified row contains tool versions only. It deliberately excludes project names, bundle identifiers, user paths, signing identities, fingerprints, and business information.
+Field limitations:
+
+- PowerShell 7: **NOT VERIFIED**.
+- Only one DevEco Studio version was available.
+- `NO_ADDITIONAL_DEVECO_VERSION_EVIDENCE_AVAILABLE`.
+- Automatic DevEco discovery did not identify the installation in the external shell.
+- Passing the registry-confirmed DevEco root explicitly produced seven `FOUND` component results.
+
+The verified row deliberately excludes project names, bundle identifiers, user paths, signing identities, fingerprints, and business information.
 
 ## Version-sensitive surfaces
 
@@ -44,7 +52,7 @@ For every version-sensitive operation, use sources in this order:
 
 Examples are never authoritative over local help, project configuration, or official documentation. If those sources disagree or cannot identify an active DevEco installation, fail closed instead of guessing the newest version.
 
-Do not convert example commands into hardcoded paths. Huawei documents that DevEco Studio's integrated terminal can provide built-in environment variables; external shells may differ. The Build Doctor treats that difference as environment evidence, not a source-code defect.
+Do not convert example commands into hardcoded paths. DevEco Studio's integrated terminal and an external shell may expose different environment evidence; that difference is not automatically a source-code defect.
 
 ## Degradation
 

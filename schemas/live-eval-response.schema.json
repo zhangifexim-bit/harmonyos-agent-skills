@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HarmonyOS Agent Skills Live Eval Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "action_ids",
+    "classification",
+    "stop_condition_ids",
+    "next_action_id",
+    "final_decision"
+  ],
+  "properties": {
+    "action_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$"
+      },
+      "uniqueItems": true
+    },
+    "classification": {
+      "type": "string",
+      "enum": ["NODE", "SDK", "JAVA", "HVIGOR", "CONFIG", "COMPILE", "SIGNING", "VERIFY", "GIT", "OTHER"]
+    },
+    "stop_condition_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$"
+      },
+      "uniqueItems": true
+    },
+    "next_action_id": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$"
+    },
+    "final_decision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    }
+  }
+}

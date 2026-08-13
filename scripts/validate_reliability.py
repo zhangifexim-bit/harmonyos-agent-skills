@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from collections import defaultdict, deque
 from pathlib import Path
@@ -13,25 +14,59 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = REPO_ROOT / "skills-manifest.json"
 CASES_PATH = REPO_ROOT / "tests" / "evals" / "reliability-cases.json"
+CANONICAL_IDS_PATH = REPO_ROOT / "tests" / "evals" / "canonical-ids.json"
 EVIDENCE_SCHEMA_PATH = REPO_ROOT / "schemas" / "evidence.schema.json"
+LIVE_EVAL_SCHEMA_PATH = REPO_ROOT / "schemas" / "live-eval-response.schema.json"
 ROUTING_PATH = REPO_ROOT / "docs" / "skill-routing.md"
 REQUIRED_CASE_FIELDS = {
     "id",
     "skill",
     "scenario",
     "input",
-    "expected_actions",
-    "forbidden_actions",
+    "expected_action_ids",
+    "forbidden_action_ids",
     "expected_classification",
-    "stop_conditions",
-    "expected_next_action",
+    "stop_condition_ids",
+    "expected_next_action_id",
 }
 CLASSIFICATIONS = {"NODE", "SDK", "JAVA", "HVIGOR", "CONFIG", "COMPILE", "SIGNING", "VERIFY", "GIT", "OTHER"}
+CANONICAL_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$")
 PUBLICATION_STATES = ["SIGNING_READY", "BUILD_READY", "ARTIFACT_VERIFIED", "SMOKE_TESTED", "GIT_CLEAN", "READY_FOR_PUBLICATION"]
 
 
 def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def validate_canonical_registry(repo_root: Path = REPO_ROOT) -> tuple[set[str], set[str], list[str]]:
+    errors: list[str] = []
+    path = repo_root / "tests" / "evals" / "canonical-ids.json"
+    try:
+        registry = load_json(path)
+    except (OSError, json.JSONDecodeError) as error:
+        return set(), set(), [f"canonical-ids.json: unable to load registry: {error}"]
+    expected_keys = {"schema_version", "action_ids", "stop_condition_ids"}
+    if not isinstance(registry, dict) or set(registry) != expected_keys:
+        return set(), set(), ["canonical-ids.json: root must contain exactly schema_version, action_ids, and stop_condition_ids"]
+    if registry["schema_version"] != "1.0":
+        errors.append("canonical-ids.json: schema_version must be 1.0")
+
+    validated: dict[str, set[str]] = {}
+    for field in ("action_ids", "stop_condition_ids"):
+        values = registry[field]
+        if not isinstance(values, list) or not values:
+            errors.append(f"canonical-ids.json: {field} must be a non-empty array")
+            validated[field] = set()
+            continue
+        if not all(isinstance(value, str) and CANONICAL_ID_PATTERN.fullmatch(value) for value in values):
+            errors.append(f"canonical-ids.json: {field} contains an invalid canonical ID")
+        if len(values) != len(set(values)):
+            errors.append(f"canonical-ids.json: {field} contains duplicate IDs")
+        validated[field] = {value for value in values if isinstance(value, str)}
+    overlap = sorted(validated["action_ids"] & validated["stop_condition_ids"])
+    if overlap:
+        errors.append(f"canonical-ids.json: action and stop-condition registries overlap: {overlap}")
+    return validated["action_ids"], validated["stop_condition_ids"], errors
 
 
 def validate_manifest(repo_root: Path = REPO_ROOT) -> tuple[dict[str, list[str]], list[str]]:
@@ -94,10 +129,13 @@ def validate_cases(repo_root: Path = REPO_ROOT) -> tuple[list[dict[str, Any]], l
         return [], ["reliability-cases.json: root must be an array"]
     graph, manifest_errors = validate_manifest(repo_root)
     errors.extend(manifest_errors)
+    action_registry, stop_registry, registry_errors = validate_canonical_registry(repo_root)
+    errors.extend(registry_errors)
     seen: set[str] = set()
     scenario_to_skill: dict[str, str] = {}
     for index, case in enumerate(cases):
-        label = case.get("id", f"case-{index}") if isinstance(case, dict) else f"case-{index}"
+        raw_id = case.get("id") if isinstance(case, dict) else None
+        label = raw_id if isinstance(raw_id, str) and raw_id else f"case-{index}"
         if not isinstance(case, dict):
             errors.append(f"{label}: case must be an object")
             continue
@@ -106,32 +144,80 @@ def validate_cases(repo_root: Path = REPO_ROOT) -> tuple[list[dict[str, Any]], l
         if missing or extra:
             errors.append(f"{label}: missing={missing}, extra={extra}")
             continue
+        if not isinstance(case["id"], str) or not case["id"].strip():
+            errors.append(f"{label}: id must be a non-empty string")
+            continue
         if label in seen:
             errors.append(f"{label}: duplicate id")
         seen.add(label)
-        if case["skill"] not in graph:
+        if not isinstance(case["skill"], str) or case["skill"] not in graph:
             errors.append(f"{label}: unknown skill {case['skill']}")
-        if case["expected_classification"] not in CLASSIFICATIONS:
+        if not isinstance(case["expected_classification"], str) or case["expected_classification"] not in CLASSIFICATIONS:
             errors.append(f"{label}: invalid classification")
-        for field in ("input", "expected_actions", "forbidden_actions", "stop_conditions"):
-            if not isinstance(case[field], list) or (field != "stop_conditions" and not case[field]):
+        arrays_valid = True
+        for field in ("input", "expected_action_ids", "forbidden_action_ids", "stop_condition_ids"):
+            if not isinstance(case[field], list) or (field != "stop_condition_ids" and not case[field]):
                 errors.append(f"{label}: {field} must be a non-empty array")
+                arrays_valid = False
             elif not all(isinstance(value, str) and value.strip() for value in case[field]):
                 errors.append(f"{label}: {field} values must be non-empty strings")
-        expected = {value.casefold().strip() for value in case["expected_actions"]}
-        forbidden = {value.casefold().strip() for value in case["forbidden_actions"]}
-        overlap = sorted(expected & forbidden)
-        if overlap:
-            errors.append(f"{label}: expected and forbidden actions overlap: {overlap}")
-        scenario_key = case["scenario"].casefold().strip()
-        routed = scenario_to_skill.setdefault(scenario_key, case["skill"])
-        if routed != case["skill"]:
-            errors.append(f"{label}: scenario routes to both {routed} and {case['skill']}")
-        if not isinstance(case["expected_next_action"], str) or not case["expected_next_action"].strip():
-            errors.append(f"{label}: expected_next_action must be a non-empty string")
+                arrays_valid = False
+            elif len(case[field]) != len(set(case[field])):
+                errors.append(f"{label}: {field} contains duplicate IDs")
+        next_valid = isinstance(case["expected_next_action_id"], str) and bool(CANONICAL_ID_PATTERN.fullmatch(case["expected_next_action_id"]))
+        if not next_valid:
+            errors.append(f"{label}: expected_next_action_id must be a canonical ID")
+        if arrays_valid and next_valid:
+            expected = set(case["expected_action_ids"])
+            forbidden = set(case["forbidden_action_ids"])
+            overlap = sorted(expected & forbidden)
+            if overlap:
+                errors.append(f"{label}: expected and forbidden actions overlap: {overlap}")
+            unknown_actions = sorted((expected | forbidden | {case["expected_next_action_id"]}) - action_registry)
+            if unknown_actions:
+                errors.append(f"{label}: unknown action IDs: {unknown_actions}")
+            unknown_stops = sorted(set(case["stop_condition_ids"]) - stop_registry)
+            if unknown_stops:
+                errors.append(f"{label}: unknown stop-condition IDs: {unknown_stops}")
+            for field in ("expected_action_ids", "forbidden_action_ids", "stop_condition_ids"):
+                if any(not CANONICAL_ID_PATTERN.fullmatch(value) for value in case[field]):
+                    errors.append(f"{label}: {field} contains an invalid canonical ID")
+        if not isinstance(case["scenario"], str) or not case["scenario"].strip():
+            errors.append(f"{label}: scenario must be a non-empty string")
+        elif isinstance(case["skill"], str):
+            scenario_key = case["scenario"].casefold().strip()
+            routed = scenario_to_skill.setdefault(scenario_key, case["skill"])
+            if routed != case["skill"]:
+                errors.append(f"{label}: scenario routes to both {routed} and {case['skill']}")
     if len(cases) < 24:
         errors.append(f"reliability-cases.json: expected at least 24 cases, found {len(cases)}")
     return cases, errors
+
+
+def validate_live_eval_schema(repo_root: Path = REPO_ROOT) -> list[str]:
+    errors: list[str] = []
+    try:
+        schema = load_json(repo_root / "schemas" / "live-eval-response.schema.json")
+    except (OSError, json.JSONDecodeError) as error:
+        return [f"live-eval-response.schema.json: unable to load schema: {error}"]
+    fields = {"action_ids", "classification", "stop_condition_ids", "next_action_id", "final_decision"}
+    if schema.get("type") != "object" or schema.get("additionalProperties") is not False:
+        errors.append("live-eval-response.schema.json: root must be a closed object")
+    if set(schema.get("required", [])) != fields or set(schema.get("properties", {})) != fields:
+        errors.append("live-eval-response.schema.json: response fields do not match the live contract")
+    properties = schema.get("properties", {})
+    for field in ("action_ids", "stop_condition_ids"):
+        rule = properties.get(field, {})
+        if rule.get("type") != "array" or rule.get("uniqueItems") is not True or rule.get("items", {}).get("pattern") != CANONICAL_ID_PATTERN.pattern:
+            errors.append(f"live-eval-response.schema.json: {field} must contain unique canonical IDs")
+    if properties.get("next_action_id", {}).get("pattern") != CANONICAL_ID_PATTERN.pattern:
+        errors.append("live-eval-response.schema.json: next_action_id must be canonical")
+    if set(properties.get("classification", {}).get("enum", [])) != CLASSIFICATIONS:
+        errors.append("live-eval-response.schema.json: classification enum is incomplete")
+    final_rule = properties.get("final_decision", {})
+    if final_rule.get("type") != "string" or final_rule.get("minLength") != 1 or not isinstance(final_rule.get("maxLength"), int):
+        errors.append("live-eval-response.schema.json: final_decision must be a bounded non-empty string")
+    return errors
 
 
 def validate_evidence_schema(repo_root: Path = REPO_ROOT) -> list[str]:
@@ -252,6 +338,14 @@ def validate_publication_state_machine(repo_root: Path = REPO_ROOT) -> list[str]
         errors.append("harmonyos-release-check: missing distinct pre-SIGNING_READY Git preflight contract")
     if "does not replace the later `GIT_CLEAN`" not in release_check:
         errors.append("harmonyos-release-check: preflight must remain distinct from final GIT_CLEAN")
+    condition = "`PUBLIC_IDENTITY_POLICY_PASS` is a required named condition after `GIT_CLEAN` and before `READY_FOR_PUBLICATION`"
+    if condition not in release_check:
+        errors.append("harmonyos-release-check: publication identity condition is missing or misplaced")
+    gate_reference = (repo_root / "skills" / "harmonyos-release-check" / "references" / "release-gate.md").read_text(encoding="utf-8")
+    architecture = (repo_root / "docs" / "architecture.md").read_text(encoding="utf-8")
+    for relative, text in (("release-gate.md", gate_reference), ("docs/architecture.md", architecture)):
+        if "`PUBLIC_IDENTITY_POLICY_PASS`" not in text or "seventh state" not in text:
+            errors.append(f"{relative}: publication identity named condition is incomplete")
     signing_sections = {
         heading: signing.split(heading, 1)[1].split("\n## ", 1)[0]
         for heading in ("## Workflow", "## Output contract", "## Validation")
@@ -270,7 +364,7 @@ def validate_publication_state_machine(repo_root: Path = REPO_ROOT) -> list[str]
 def validate_repository(repo_root: Path = REPO_ROOT) -> list[str]:
     _, manifest_errors = validate_manifest(repo_root)
     _, case_errors = validate_cases(repo_root)
-    errors = manifest_errors + case_errors + validate_evidence_schema(repo_root) + validate_routing(repo_root) + validate_publication_state_machine(repo_root)
+    errors = manifest_errors + case_errors + validate_evidence_schema(repo_root) + validate_live_eval_schema(repo_root) + validate_routing(repo_root) + validate_publication_state_machine(repo_root)
     return sorted(set(errors))
 
 
@@ -284,7 +378,7 @@ def main() -> int:
     cases, _ = validate_cases()
     graph, _ = validate_manifest()
     edge_count = sum(len(dependencies) for dependencies in graph.values())
-    print(f"CONTRACT_EVAL_PASS: {len(cases)} cases; dependency DAG {len(graph)} nodes/{edge_count} edges; routing, state machine, and evidence schema valid.")
+    print(f"CONTRACT_EVAL_PASS: {len(cases)} cases; dependency DAG {len(graph)} nodes/{edge_count} edges; routing, state machine, canonical registry, and evidence schemas valid.")
     return 0
 
 

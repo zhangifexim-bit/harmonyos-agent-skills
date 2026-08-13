@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "allowed_control_identities": [
+    {
+      "name": "zhangifexim-bit",
+      "email": "zhangifexim-bit@users.noreply.github.com"
+    }
+  ],
+  "allowed_tag_identities": [
+    {
+      "name": "zhangifexim-bit",
+      "email": "zhangifexim-bit@users.noreply.github.com"
+    }
+  ]
+}
