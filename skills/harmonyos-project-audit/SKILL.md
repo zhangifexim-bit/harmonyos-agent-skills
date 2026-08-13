@@ -9,6 +9,18 @@ description: Establish a read-only, evidence-based baseline for a HarmonyOS or D
 
 Audit first. Do not modify the target project during Gate A. Separate confirmed facts, risks, and unknowns; then propose one minimal next action.
 
+## Use when
+
+Use for first inspection, takeover, recovery, scope discovery, or a read-only baseline before any edit.
+
+## Do not use when
+
+Do not use as the primary skill for deep CLI environment repair, signing configuration, final artifact verification, or publication orchestration.
+
+## Handoff
+
+After the baseline, recommend exactly one primary next skill when needed: Build Doctor for an environment failure, Release Signing for signing readiness, or Release Check for a final candidate. A recommendation does not invoke another skill automatically.
+
 ## Required inputs
 
 - Target project path and the user's requested outcome.
@@ -73,6 +85,8 @@ Return exactly these sections:
 4. **Proposed minimal next action** — one bounded action, required authorization, and validation.
 
 For Gate B, also return changed files, before/after evidence, `git diff --check`, `git status --short`, and build/test results.
+
+Optionally append redacted machine-readable evidence conforming to the repository's [evidence schema](https://github.com/zhangifexim-bit/harmonyos-agent-skills/blob/main/schemas/evidence.schema.json). Keep human-readable sections authoritative; never place secrets or personal absolute paths in evidence JSON.
 
 ## Validation
 

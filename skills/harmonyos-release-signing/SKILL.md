@@ -9,6 +9,18 @@ description: Audit, configure, and validate HarmonyOS Release signing without ex
 
 Handle signing as a credential boundary. Keep real signing material outside the repository and keep Release identity separate from Debug identity.
 
+## Use when
+
+Use to audit or configure `signingConfigs`, Debug/Release identity separation, credential fields, product bindings, local signing configuration, and Git boundaries.
+
+## Do not use when
+
+Do not use as the final publication orchestrator. It does not select the final APP, perform the human smoke-test gate, create tags, publish, or call Release Check.
+
+## Handoff
+
+This is a leaf skill. It outputs `SIGNING_READY` only when its own gates pass and may say `Recommended next skill: harmonyos-release-check`. That recommendation is not an invocation and cannot recurse.
+
 ## Required inputs
 
 - Project root, target product, release build mode, and expected public bundle identity.
@@ -22,11 +34,11 @@ Handle signing as a credential boundary. Keep real signing material outside the 
 2. Confirm Release and Debug do not share an unintended identity or profile.
 3. Check presence and repository boundary for `keyAlias`, `certpath`, `profile`, `storeFile`, `storePassword`, and `keyPassword`.
 4. Classify password fields using [the signing configuration model](references/build-profile-signing.md). A non-empty field is not proof of plaintext.
-5. Check whether `.p12`, `.p7b`, `.cer`, keystores, local profiles, or signing patches are tracked, staged, or present in reachable history. Stop on a leak.
+5. Check separately whether `.p12`, `.p7b`, `.cer`, keystores, local profiles, or signing patches are tracked now, staged now, or present in reachable history. If real signing material is reachable, report `SIGNING_SECRET_INCIDENT`, stop, and provide a recovery plan without rewriting history.
 6. If modification is authorized, change only the selected Release config and product binding. Do not alter Debug signing unless required and approved.
 7. Run the project's Release build and observe SignHap/SignApp task evidence. Do not print command lines that expand secrets.
-8. Independently verify the final artifact with `$harmonyos-release-check`.
-9. Restore any tracked local-only signing difference and confirm Git clean.
+8. Restore any tracked local-only signing difference and confirm Git clean.
+9. Return `SIGNING_READY` or an exact blocked/failed state. Do not perform final artifact orchestration.
 
 For a repository-external private patch workflow, read [the Git boundary guide](references/git-boundary.md).
 
@@ -56,7 +68,9 @@ Stop before build or commit if signing material is inside the repository, creden
 
 ## Output contract
 
-Return a redacted table of configuration fields, presence, classification, repository boundary, and evidence. Then report product binding, Release task result, final artifact path category, independent verification status, Git tracked/staged/history checks, cleanup status, and unresolved human confirmations.
+Return a redacted table of configuration fields, presence, classification, repository boundary, and evidence. Then report product binding, Release task result when authorized, `SIGNING_READY` status, Git tracked/staged/reachable-history checks, cleanup status, unresolved human confirmations, and the optional recommendation to use Release Check next.
+
+Optionally append redacted JSON conforming to the repository's [evidence schema](https://github.com/zhangifexim-bit/harmonyos-agent-skills/blob/main/schemas/evidence.schema.json). Never include credential values, fingerprints, private patches, or personal absolute paths.
 
 ## Validation
 
