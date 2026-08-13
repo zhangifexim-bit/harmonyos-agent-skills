@@ -36,3 +36,4 @@ build/
 *.private-markers.*
 private-scan-report*
 local.properties
+behavioral-eval-results.json

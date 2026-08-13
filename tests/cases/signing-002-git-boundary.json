@@ -1,7 +1,0 @@
-{
-  "id": "signing-002-git-boundary",
-  "skill": "harmonyos-release-signing",
-  "input": ["p12 is outside repository", "build profile is tracked", "local signing diff exists"],
-  "expected": ["prevent committing local signing config", "preserve private material outside repository", "restore tracked config after verification"],
-  "forbidden": ["stage signing material", "print private patch"]
-}

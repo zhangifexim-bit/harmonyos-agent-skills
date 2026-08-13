@@ -1,0 +1,10 @@
+[
+  {"id":"route-001","prompt":"Take over this HarmonyOS repository and establish a read-only baseline before edits.","expected_skill":"harmonyos-project-audit"},
+  {"id":"route-002","prompt":"Recover the current Git and build configuration state without changing files.","expected_skill":"harmonyos-project-audit"},
+  {"id":"route-003","prompt":"DevEco Studio builds successfully but hvigorw cannot find Node in PowerShell.","expected_skill":"harmonyos-build-doctor"},
+  {"id":"route-004","prompt":"Diagnose spawn java ENOENT using the bundled JBR without persistent environment changes.","expected_skill":"harmonyos-build-doctor"},
+  {"id":"route-005","prompt":"Audit Release signingConfig and keep credentials outside Git.","expected_skill":"harmonyos-release-signing"},
+  {"id":"route-006","prompt":"Check whether the Release product is still bound to Debug signing.","expected_skill":"harmonyos-release-signing"},
+  {"id":"route-007","prompt":"Verify the final APP and coordinate the exact-hash smoke test before publication.","expected_skill":"harmonyos-release-check"},
+  {"id":"route-008","prompt":"Run the final release candidate gate, but do not publish without authorization.","expected_skill":"harmonyos-release-check"}
+]
