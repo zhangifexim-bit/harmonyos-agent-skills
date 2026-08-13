@@ -13,7 +13,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 10
     env:
-      PUBLICATION_CANDIDATE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      PUBLICATION_CANDIDATE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || (github.event_name != 'pull_request' && github.sha) }}
 
     steps:
       - name: Check out repository

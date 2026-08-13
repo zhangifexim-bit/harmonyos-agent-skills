@@ -185,6 +185,15 @@ class MetadataAuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "PUBLICATION_CANDIDATE_REF"):
             self.scanner.resolve_ci_candidate_ref({"GITHUB_ACTIONS": "true"})
 
+    def test_pull_request_workflow_never_falls_back_to_synthetic_github_sha(self) -> None:
+        workflow = (REPO_ROOT / ".github" / "workflows" / "quality.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "github.event_name == 'pull_request' && github.event.pull_request.head.sha "
+            "|| (github.event_name != 'pull_request' && github.sha)",
+            workflow,
+        )
+        self.assertNotIn("github.event.pull_request.head.sha || github.sha", workflow)
+
     def test_publication_base_must_be_ancestor(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             repo = Path(temporary)
