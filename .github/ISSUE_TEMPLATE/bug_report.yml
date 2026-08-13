@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a reproducible problem in a skill, script, or validation rule
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, signing material, private source, real bundle identities, or personal paths.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - harmonyos-project-audit
+        - harmonyos-build-doctor
+        - harmonyos-release-signing
+        - harmonyos-release-check
+        - validation or privacy scripts
+        - documentation
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Sanitized reproduction and observed behavior
+      description: Use placeholders and synthetic data. Include commands only after removing private values.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I removed credentials, signing material, private source, personal paths, and real identities.
+          required: true
