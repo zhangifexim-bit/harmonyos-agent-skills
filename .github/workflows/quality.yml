@@ -23,16 +23,22 @@ jobs:
           python-version: "3.13"
 
       - name: Compile Python scripts
-        run: python -m py_compile scripts/validate_skills.py scripts/scan_private_markers.py
+        run: python -m py_compile scripts/validate_skills.py scripts/validate_reliability.py scripts/run_behavioral_evals.py scripts/scan_private_markers.py
 
       - name: Validate skills and local Markdown links
         run: python scripts/validate_skills.py
+
+      - name: Run deterministic reliability contracts
+        run: python scripts/validate_reliability.py
 
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
 
       - name: Run generic privacy scan
         run: python scripts/scan_private_markers.py --generic-only
+
+      - name: Validate optional live eval harness without agent calls
+        run: python scripts/run_behavioral_evals.py --case build-001-node-missing
 
       - name: Parse and execute read-only PowerShell probe
         shell: pwsh
@@ -46,6 +52,17 @@ jobs:
           if ($errors.Count -gt 0) { throw ($errors | Out-String) }
           $result = & ./scripts/check-deveco-env.ps1 -ProjectPath . -Json | ConvertFrom-Json
           if ($result.Count -ne 7) { throw "Expected seven component results." }
+
+      - name: Parse safe installer
+        shell: pwsh
+        run: |
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'install.ps1'),
+            [ref]$null,
+            [ref]$errors
+          )
+          if ($errors.Count -gt 0) { throw ($errors | Out-String) }
 
       - name: Check whitespace
         run: git diff --check HEAD
