@@ -179,6 +179,22 @@ class MetadataAuditTests(unittest.TestCase):
                     tag_ref="refs/publication-tags/v1.0.0",
                 )
 
+    def test_publication_temp_ref_metadata_is_audited(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            self.initialize_repo(repo)
+            self.commit_file(repo, "candidate.txt", "candidate\n", "candidate", "Maintainer Bot", "maintainer@users.noreply.github.com")
+            subprocess.run(["git", "tag", "-a", "v1.0.0", "-m", "local baseline"], cwd=repo, check=True)
+            tag_object = subprocess.run(
+                ["git", "rev-parse", "refs/tags/v1.0.0"], cwd=repo, check=True, capture_output=True, text=True
+            ).stdout.strip()
+            subprocess.run(["git", "update-ref", "refs/publication-tags/v1.0.0", tag_object], cwd=repo, check=True)
+            subprocess.run(["git", "update-ref", "-d", "refs/tags/v1.0.0"], cwd=repo, check=True)
+
+            findings, counts = self.scanner.audit_repository(repo, [])
+            self.assertEqual(1, counts["annotated_tags"])
+            self.assertTrue(any(finding.object_type == "tag" and finding.field == "message" for finding in findings))
+
     def test_publication_temp_ref_rejects_unauthorized_tagger(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             repo = Path(temporary)
@@ -299,6 +315,7 @@ class MetadataAuditTests(unittest.TestCase):
         self.assertIn('git fetch --force origin "refs/tags/$env:GITHUB_REF_NAME`:$publicationRef"', workflow)
         self.assertIn('--tag-ref "refs/publication-tags/$env:GITHUB_REF_NAME"', workflow)
         self.assertNotIn('--tag-ref $env:GITHUB_REF_NAME', workflow)
+        self.assertLess(workflow.index("Fetch canonical annotated tag object"), workflow.index("Audit Git metadata and reachable refs"))
 
     def test_publication_base_must_be_ancestor(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

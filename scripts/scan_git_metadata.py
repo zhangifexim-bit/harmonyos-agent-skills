@@ -15,7 +15,8 @@ from typing import Any, Mapping
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-AUDITED_REF_PREFIXES = ("refs/heads/", "refs/remotes/", "refs/tags/")
+AUDITED_TAG_REF_PREFIXES = ("refs/tags/", "refs/publication-tags/")
+AUDITED_REF_PREFIXES = ("refs/heads/", "refs/remotes/", *AUDITED_TAG_REF_PREFIXES)
 GENERIC_PATTERNS = (
     ("invalid-email-domain", re.compile(r"(?i)@(?:invalid|example|localhost)$")),
     ("local-baseline-identity", re.compile(r"(?i)\blocal[ _-]?baseline\b")),
@@ -110,7 +111,7 @@ def audit_repository(repo: Path, markers: list[str]) -> tuple[list[Finding], dic
             findings.append(Finding("commit", commit_id, "message", rule))
     annotated_tags = 0
     for refname, object_id in sorted(refs.items()):
-        if not refname.startswith("refs/tags/") or git(repo, "cat-file", "-t", object_id).strip() != "tag":
+        if not refname.startswith(AUDITED_TAG_REF_PREFIXES) or git(repo, "cat-file", "-t", object_id).strip() != "tag":
             continue
         annotated_tags += 1
         tagger_name, tagger_email, tag_message = git(
