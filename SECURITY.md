@@ -22,4 +22,4 @@ Use minimal synthetic examples. Replace identifiers and paths with explicit plac
 
 ## Supported versions
 
-Security fixes are applied to the latest release and the current `main` development line. The current stable release is `v0.2.0`.
+Security fixes are applied to the latest release and the current `main` development line. The current stable release is `v0.2.1`.

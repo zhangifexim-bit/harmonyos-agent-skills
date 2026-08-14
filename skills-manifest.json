@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "repository_version": "0.2.0",
+  "repository_version": "0.2.1",
   "skills": [
     {"name": "harmonyos-project-audit", "path": "skills/harmonyos-project-audit", "dependencies": []},
     {"name": "harmonyos-build-doctor", "path": "skills/harmonyos-build-doctor", "dependencies": []},
