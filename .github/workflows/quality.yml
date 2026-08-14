@@ -49,9 +49,21 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: python scripts/scan_git_metadata.py --publication-policy policies/publication-identity.json --candidate-ref HEAD
 
+      - name: Fetch canonical annotated tag object
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $publicationRef = "refs/publication-tags/$env:GITHUB_REF_NAME"
+          git fetch --force origin "refs/tags/$env:GITHUB_REF_NAME`:$publicationRef"
+          if ($LASTEXITCODE -ne 0) { throw "Failed to fetch the canonical publication tag." }
+          $objectType = git cat-file -t $publicationRef
+          if ($LASTEXITCODE -ne 0 -or $objectType -ne 'tag') {
+            throw "The canonical publication ref is not an annotated tag."
+          }
+
       - name: Enforce publication identity on annotated tag
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-        run: python scripts/scan_git_metadata.py --publication-policy policies/publication-identity.json --candidate-ref HEAD --tag-ref $env:GITHUB_REF_NAME
+        run: python scripts/scan_git_metadata.py --publication-policy policies/publication-identity.json --candidate-ref HEAD --tag-ref "refs/publication-tags/$env:GITHUB_REF_NAME"
 
       - name: Validate optional live eval harness without agent calls
         run: python scripts/run_behavioral_evals.py --case build-001-node-missing
