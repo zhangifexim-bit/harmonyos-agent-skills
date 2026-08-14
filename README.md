@@ -4,7 +4,7 @@
 
 Reusable AI agent skills for safer HarmonyOS and DevEco Studio engineering, build troubleshooting, release signing, verification, and Git hygiene.
 
-**Stable:** `v0.2.0` · Reliability Release
+**Stable:** `v0.2.1` · Reliability Hardening
 
 ```powershell
 .\install.ps1

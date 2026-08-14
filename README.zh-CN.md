@@ -4,7 +4,7 @@
 
 面向 AI Coding Agent 的 HarmonyOS / DevEco Studio 工程化技能集，覆盖项目审计、构建排障、Release 签名、验签与 Git 安全。
 
-**稳定版：** `v0.2.0` · Reliability Release
+**稳定版：** `v0.2.1` · Reliability Hardening
 
 ```powershell
 .\install.ps1
