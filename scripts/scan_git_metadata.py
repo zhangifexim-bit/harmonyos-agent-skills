@@ -15,7 +15,8 @@ from typing import Any, Mapping
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-AUDITED_REF_PREFIXES = ("refs/heads/", "refs/remotes/", "refs/tags/")
+AUDITED_TAG_REF_PREFIXES = ("refs/tags/", "refs/publication-tags/")
+AUDITED_REF_PREFIXES = ("refs/heads/", "refs/remotes/", *AUDITED_TAG_REF_PREFIXES)
 GENERIC_PATTERNS = (
     ("invalid-email-domain", re.compile(r"(?i)@(?:invalid|example|localhost)$")),
     ("local-baseline-identity", re.compile(r"(?i)\blocal[ _-]?baseline\b")),
@@ -110,7 +111,7 @@ def audit_repository(repo: Path, markers: list[str]) -> tuple[list[Finding], dic
             findings.append(Finding("commit", commit_id, "message", rule))
     annotated_tags = 0
     for refname, object_id in sorted(refs.items()):
-        if not refname.startswith("refs/tags/") or git(repo, "cat-file", "-t", object_id).strip() != "tag":
+        if not refname.startswith(AUDITED_TAG_REF_PREFIXES) or git(repo, "cat-file", "-t", object_id).strip() != "tag":
             continue
         annotated_tags += 1
         tagger_name, tagger_email, tag_message = git(
@@ -170,6 +171,15 @@ def resolve_commit(repo: Path, refname: str) -> str:
     return git(repo, "rev-parse", "--verify", f"{refname}^{{commit}}").strip()
 
 
+def resolve_publication_tag_ref(tag_ref: str) -> str:
+    """Resolve an explicit local tag ref without trusting checkout's tag namespace."""
+    if tag_ref.startswith("refs/tags/") or tag_ref.startswith("refs/publication-tags/"):
+        return tag_ref
+    if tag_ref.startswith("refs/"):
+        raise ValueError("publication tag ref uses an unsupported namespace")
+    return f"refs/tags/{tag_ref}"
+
+
 def resolve_ci_candidate_ref(environment: Mapping[str, str] | None = None) -> str:
     """Resolve the event's real candidate, never a pull-request merge checkout."""
     values = os.environ if environment is None else environment
@@ -226,16 +236,22 @@ def publication_identity_findings(
 
     tags_checked = 0
     if tag_ref is not None:
-        tag_object = git(repo, "rev-parse", "--verify", tag_ref).strip()
+        qualified_tag_ref = resolve_publication_tag_ref(tag_ref)
+        tag_object = git(repo, "rev-parse", "--verify", qualified_tag_ref).strip()
         if git(repo, "cat-file", "-t", tag_object).strip() != "tag":
             raise ValueError("publication tag must be annotated")
+        if resolve_commit(repo, qualified_tag_ref) != candidate:
+            raise ValueError("publication tag target does not match candidate")
         tags_checked = 1
-        tagger_name, tagger_email = git(
+        tagger_record = git(
             repo,
             "for-each-ref",
-            f"refs/tags/{tag_ref.removeprefix('refs/tags/')}",
+            qualified_tag_ref,
             "--format=%(taggername)%00%(taggeremail)",
-        ).rstrip("\n").split("\0", 1)
+        ).rstrip("\n")
+        if not tagger_record:
+            raise ValueError("publication tag ref could not be inspected")
+        tagger_name, tagger_email = tagger_record.split("\0", 1)
         if not identity_allowed(tagger_name, tagger_email, policy["allowed_tag_identities"]):
             findings.append(Finding("annotated-tag", tag_object, "tagger", "publication-tag-identity"))
     return findings, {"candidate": 1, "merge_commits": len(merge_ids), "annotated_tags": tags_checked}

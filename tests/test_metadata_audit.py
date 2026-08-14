@@ -118,6 +118,122 @@ class MetadataAuditTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "annotated"):
                 self.scanner.publication_identity_findings(repo, self.synthetic_policy(), candidate, tag_ref="lightweight")
 
+    def test_publication_temp_ref_recovers_annotated_tag_after_checkout_clobber(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            remote = root / "remote.git"
+            runner = root / "runner"
+            source.mkdir()
+            self.initialize_repo(source)
+            candidate = self.commit_file(
+                source,
+                "candidate.txt",
+                "candidate\n",
+                "candidate",
+                "Maintainer Bot",
+                "maintainer@users.noreply.github.com",
+            )
+            subprocess.run(["git", "tag", "-a", "v1.0.0", "-m", "Unicode — release"], cwd=source, check=True)
+            subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
+            subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=source, check=True)
+            subprocess.run(["git", "push", "origin", "main", "refs/tags/v1.0.0"], cwd=source, check=True, capture_output=True)
+            subprocess.run(["git", "clone", str(remote), str(runner)], check=True, capture_output=True)
+
+            subprocess.run(["git", "update-ref", "refs/tags/v1.0.0", candidate], cwd=runner, check=True)
+            clobbered_type = subprocess.run(
+                ["git", "cat-file", "-t", "refs/tags/v1.0.0"],
+                cwd=runner,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            self.assertEqual("commit", clobbered_type)
+
+            subprocess.run(
+                ["git", "fetch", "--force", "origin", "refs/tags/v1.0.0:refs/publication-tags/v1.0.0"],
+                cwd=runner,
+                check=True,
+                capture_output=True,
+            )
+            findings, counts = self.scanner.publication_identity_findings(
+                runner,
+                self.synthetic_policy(),
+                candidate,
+                tag_ref="refs/publication-tags/v1.0.0",
+            )
+            self.assertEqual([], findings)
+            self.assertEqual(1, counts["annotated_tags"])
+
+    def test_publication_temp_ref_fails_closed_for_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            self.initialize_repo(repo)
+            candidate = self.commit_file(repo, "candidate.txt", "candidate\n", "candidate", "Maintainer Bot", "maintainer@users.noreply.github.com")
+            subprocess.run(["git", "update-ref", "refs/publication-tags/v1.0.0", candidate], cwd=repo, check=True)
+            with self.assertRaisesRegex(ValueError, "annotated"):
+                self.scanner.publication_identity_findings(
+                    repo,
+                    self.synthetic_policy(),
+                    candidate,
+                    tag_ref="refs/publication-tags/v1.0.0",
+                )
+
+    def test_publication_temp_ref_metadata_is_audited(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            self.initialize_repo(repo)
+            self.commit_file(repo, "candidate.txt", "candidate\n", "candidate", "Maintainer Bot", "maintainer@users.noreply.github.com")
+            subprocess.run(["git", "tag", "-a", "v1.0.0", "-m", "local baseline"], cwd=repo, check=True)
+            tag_object = subprocess.run(
+                ["git", "rev-parse", "refs/tags/v1.0.0"], cwd=repo, check=True, capture_output=True, text=True
+            ).stdout.strip()
+            subprocess.run(["git", "update-ref", "refs/publication-tags/v1.0.0", tag_object], cwd=repo, check=True)
+            subprocess.run(["git", "update-ref", "-d", "refs/tags/v1.0.0"], cwd=repo, check=True)
+
+            findings, counts = self.scanner.audit_repository(repo, [])
+            self.assertEqual(1, counts["annotated_tags"])
+            self.assertTrue(any(finding.object_type == "tag" and finding.field == "message" for finding in findings))
+
+    def test_publication_temp_ref_rejects_unauthorized_tagger(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            self.initialize_repo(repo)
+            candidate = self.commit_file(repo, "candidate.txt", "candidate\n", "candidate", "Maintainer Bot", "maintainer@users.noreply.github.com")
+            environment = dict(os.environ)
+            environment.update({"GIT_COMMITTER_NAME": "Unauthorized Tagger", "GIT_COMMITTER_EMAIL": "tagger@public.test"})
+            subprocess.run(["git", "tag", "-a", "v1.0.0", "-m", "release"], cwd=repo, env=environment, check=True)
+            tag_object = subprocess.run(
+                ["git", "rev-parse", "refs/tags/v1.0.0"], cwd=repo, check=True, capture_output=True, text=True
+            ).stdout.strip()
+            subprocess.run(["git", "update-ref", "refs/publication-tags/v1.0.0", tag_object], cwd=repo, check=True)
+            findings, _ = self.scanner.publication_identity_findings(
+                repo,
+                self.synthetic_policy(),
+                candidate,
+                tag_ref="refs/publication-tags/v1.0.0",
+            )
+            self.assertEqual({"tagger"}, {finding.field for finding in findings})
+
+    def test_publication_tag_target_must_match_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            self.initialize_repo(repo)
+            tagged_commit = self.commit_file(repo, "tagged.txt", "tagged\n", "tagged", "Maintainer Bot", "maintainer@users.noreply.github.com")
+            subprocess.run(["git", "tag", "-a", "v1.0.0", tagged_commit, "-m", "release"], cwd=repo, check=True)
+            candidate = self.commit_file(repo, "candidate.txt", "candidate\n", "candidate", "Maintainer Bot", "maintainer@users.noreply.github.com")
+            tag_object = subprocess.run(
+                ["git", "rev-parse", "refs/tags/v1.0.0"], cwd=repo, check=True, capture_output=True, text=True
+            ).stdout.strip()
+            subprocess.run(["git", "update-ref", "refs/publication-tags/v1.0.0", tag_object], cwd=repo, check=True)
+            with self.assertRaisesRegex(ValueError, "target does not match"):
+                self.scanner.publication_identity_findings(
+                    repo,
+                    self.synthetic_policy(),
+                    candidate,
+                    tag_ref="refs/publication-tags/v1.0.0",
+                )
+
     def test_unicode_annotated_tag_is_utf8_safe(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             repo = Path(temporary)
@@ -193,6 +309,13 @@ class MetadataAuditTests(unittest.TestCase):
             workflow,
         )
         self.assertNotIn("github.event.pull_request.head.sha || github.sha", workflow)
+
+    def test_tag_workflow_uses_canonical_publication_ref(self) -> None:
+        workflow = (REPO_ROOT / ".github" / "workflows" / "quality.yml").read_text(encoding="utf-8")
+        self.assertIn('git fetch --force origin "refs/tags/$env:GITHUB_REF_NAME`:$publicationRef"', workflow)
+        self.assertIn('--tag-ref "refs/publication-tags/$env:GITHUB_REF_NAME"', workflow)
+        self.assertNotIn('--tag-ref $env:GITHUB_REF_NAME', workflow)
+        self.assertLess(workflow.index("Fetch canonical annotated tag object"), workflow.index("Audit Git metadata and reachable refs"))
 
     def test_publication_base_must_be_ancestor(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
