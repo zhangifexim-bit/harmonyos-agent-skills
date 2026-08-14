@@ -100,7 +100,7 @@ python scripts\validate_reliability.py
 python scripts\run_behavioral_evals.py --case build-001-node-missing
 ```
 
-第二条命令只验证可选 harness，并报告 `LIVE_AGENT_EVAL_NOT_RUN`；只有显式提供 `--execute` 和审阅过的 runner command 才会真实调用 Agent。详见 [Behavioral Evals](docs/behavioral-evals.md)。
+第二条命令只验证可选 harness，并报告 `LIVE_AGENT_EVAL_NOT_RUN`。真实调用只使用 first-class Codex runner，并要求 executable、CLI capability、独立认证、environment 和外部隔离 Gate 全部通过；默认矩阵最多 18 次调用。`CONTRACT_EVAL_PASS` 不代表真实 Agent 已通过。详见 [Behavioral Evals](docs/behavioral-evals.md)。
 
 ## 示例提示
 

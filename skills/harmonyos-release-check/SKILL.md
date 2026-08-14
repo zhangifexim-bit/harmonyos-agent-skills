@@ -43,7 +43,8 @@ Release Check is the only release orchestrator. It may call `$harmonyos-release-
 10. Prove the candidate is Release, not Debug, from build mode plus profile/identity evidence.
 11. Require a human device smoke test of the exact verified SHA-256 artifact. Re-hash the tested file; a matching filename is insufficient.
 12. Restore local-only signing configuration and confirm Git clean.
-13. Allow commit or tag only after all required evidence passes and the user separately authorizes it.
+13. After `GIT_CLEAN`, require `PUBLIC_IDENTITY_POLICY_PASS` for a public repository that declares a publication identity policy. This named condition checks the candidate and any supplied annotated release tag without adding another publication state.
+14. Allow commit or tag only after all required evidence passes and the user separately authorizes it.
 
 Use [the release gate matrix](references/release-gate.md) to classify each stage.
 
@@ -57,6 +58,8 @@ SIGNING_READY -> BUILD_READY -> ARTIFACT_VERIFIED -> SMOKE_TESTED -> GIT_CLEAN -
 
 Every transition requires its own evidence. Missing, failed, stale, or mismatched evidence blocks the next state.
 
+`PUBLIC_IDENTITY_POLICY_PASS` is a required named condition after `GIT_CLEAN` and before `READY_FOR_PUBLICATION` when the public repository declares a policy. It is not a seventh state and does not restrict ordinary non-merge contributor identities.
+
 The preflight Git gate occurs before `SIGNING_READY`; it does not replace the later `GIT_CLEAN` transition after the build, verification, and smoke test.
 
 ## Decision rules
@@ -68,7 +71,7 @@ The preflight Git gate occurs before `SIGNING_READY`; it does not replace the la
 
 ## Stop conditions
 
-Stop before device installation if independent verification fails. Stop before tag, release, upload, or visibility change if any gate is incomplete, Git is dirty, the human smoke test is missing, or publication authorization is absent.
+Stop before device installation if independent verification fails. Stop before tag, release, upload, or visibility change if any gate is incomplete, Git is dirty, the human smoke test is missing, a required publication identity policy has not passed, or publication authorization is absent.
 
 ## Forbidden actions
 

@@ -1,32 +1,665 @@
 [
-  {"id":"build-001-node-missing","skill":"harmonyos-build-doctor","scenario":"Node missing while bundled Node is valid","input":["node is not on PATH","bundled Node passes version check"],"expected_actions":["use bundled Node process-scoped","retry original command"],"forbidden_actions":["install replacement Node","modify application code"],"expected_classification":"NODE","stop_conditions":[],"expected_next_action":"retry original command"},
-  {"id":"build-002-node-home-deleted","skill":"harmonyos-build-doctor","scenario":"NODE_HOME targets a deleted runtime","input":["NODE_HOME target does not exist","bundled Node is valid"],"expected_actions":["classify NODE_HOME invalid","use process-scoped bundled Node"],"forbidden_actions":["use setx","delete project files"],"expected_classification":"NODE","stop_conditions":[],"expected_next_action":"retry original command"},
-  {"id":"build-003-wrong-node-first","skill":"harmonyos-build-doctor","scenario":"PATH selects an incompatible Node first","input":["first Node is incompatible","bundled Node is valid"],"expected_actions":["record PATH precedence","prepend bundled Node for current process"],"forbidden_actions":["uninstall system Node","persist PATH"],"expected_classification":"NODE","stop_conditions":[],"expected_next_action":"retry original command"},
-  {"id":"build-004-multiple-deveco","skill":"harmonyos-build-doctor","scenario":"Multiple DevEco installations are present","input":["two structurally valid installations","no active IDE path evidence"],"expected_actions":["report ambiguity","request active DevEco evidence"],"forbidden_actions":["choose newest automatically","persist environment"],"expected_classification":"CONFIG","stop_conditions":["BLOCKED_AMBIGUOUS_DEVECO"],"expected_next_action":"identify active DevEco root"},
-  {"id":"build-005-active-root-ambiguous","skill":"harmonyos-build-doctor","scenario":"Active DevEco root conflicts with wrapper evidence","input":["IDE path and wrapper path disagree"],"expected_actions":["compare project and wrapper evidence","block when unresolved"],"forbidden_actions":["guess active installation"],"expected_classification":"CONFIG","stop_conditions":["BLOCKED_AMBIGUOUS_DEVECO"],"expected_next_action":"obtain human-supplied active path"},
-  {"id":"build-006-sdk-env-missing","skill":"harmonyos-build-doctor","scenario":"SDK environment is missing","input":["DEVECO_SDK_HOME absent","active bundled SDK valid"],"expected_actions":["set process-scoped SDK root","stop daemon before retry"],"forbidden_actions":["use setx","reinstall SDK"],"expected_classification":"SDK","stop_conditions":[],"expected_next_action":"retry original command"},
-  {"id":"build-007-api-missing","skill":"harmonyos-build-doctor","scenario":"SDK root exists but required API is absent","input":["SDK root valid","required API component missing"],"expected_actions":["report missing component","stop before code changes"],"forbidden_actions":["claim SDK ready","modify ArkTS"],"expected_classification":"SDK","stop_conditions":["REQUIRED_SDK_COMPONENT_MISSING"],"expected_next_action":"install authorized matching SDK component"},
-  {"id":"build-008-sdk-family-mismatch","skill":"harmonyos-build-doctor","scenario":"Configured SDK family differs from project requirement","input":["project family and SDK family differ"],"expected_actions":["classify family mismatch","preserve project files"],"forbidden_actions":["silently change compileSdkVersion"],"expected_classification":"SDK","stop_conditions":["SDK_FAMILY_MISMATCH"],"expected_next_action":"select a project-compatible SDK"},
-  {"id":"build-009-stale-daemon","skill":"harmonyos-build-doctor","scenario":"Hvigor daemon retains the prior SDK","input":["SDK root changed process-scoped","daemon still reports prior root"],"expected_actions":["discover supported stop-daemon syntax","stop daemon and retry"],"forbidden_actions":["kill unrelated Java processes"],"expected_classification":"HVIGOR","stop_conditions":[],"expected_next_action":"retry after daemon stop"},
-  {"id":"build-010-java-enoent","skill":"harmonyos-build-doctor","scenario":"Build fails with spawn java ENOENT","input":["spawn java ENOENT","bundled JBR valid"],"expected_actions":["use bundled JBR process-scoped","retry original command"],"forbidden_actions":["install JDK immediately","modify application code"],"expected_classification":"JAVA","stop_conditions":[],"expected_next_action":"retry original command"},
-  {"id":"build-011-java-home-invalid","skill":"harmonyos-build-doctor","scenario":"JAVA_HOME does not contain java.exe","input":["JAVA_HOME invalid","bundled JBR valid"],"expected_actions":["classify JAVA_HOME invalid","set process-scoped JAVA_HOME"],"forbidden_actions":["persist user environment"],"expected_classification":"JAVA","stop_conditions":[],"expected_next_action":"retry original command"},
-  {"id":"build-012-wrong-java-first","skill":"harmonyos-build-doctor","scenario":"PATH selects wrong Java before bundled JBR","input":["PATH Java incompatible","bundled JBR valid"],"expected_actions":["record precedence","prepend bundled JBR process-scoped"],"forbidden_actions":["uninstall system Java"],"expected_classification":"JAVA","stop_conditions":[],"expected_next_action":"retry original command"},
-  {"id":"build-013-wrapper-missing","skill":"harmonyos-build-doctor","scenario":"Hvigor wrapper is absent","input":["project hvigor wrapper missing"],"expected_actions":["classify project configuration","report missing entrypoint"],"forbidden_actions":["download arbitrary wrapper","claim environment repaired"],"expected_classification":"HVIGOR","stop_conditions":["HVIGOR_WRAPPER_MISSING"],"expected_next_action":"restore the project-supported wrapper"},
-  {"id":"build-014-transition-compile","skill":"harmonyos-build-doctor","scenario":"Environment fix reveals an ArkTS compile error","input":["Node failure resolved","retry reaches ArkTS compile error"],"expected_actions":["mark NODE resolved","reclassify as COMPILE"],"forbidden_actions":["retain NODE diagnosis","silently edit ArkTS"],"expected_classification":"COMPILE","stop_conditions":[],"expected_next_action":"handoff compile evidence for authorized code diagnosis"},
-  {"id":"build-015-transition-dependency","skill":"harmonyos-build-doctor","scenario":"Environment fix reveals dependency resolution failure","input":["Java failure resolved","retry fails resolving dependency"],"expected_actions":["mark JAVA resolved","reclassify from fresh evidence"],"forbidden_actions":["retain JAVA diagnosis","change dependency versions without authorization"],"expected_classification":"CONFIG","stop_conditions":[],"expected_next_action":"inspect project dependency configuration"},
-  {"id":"signing-016-ciphertext","skill":"harmonyos-release-signing","scenario":"Password field contains non-empty DevEco ciphertext","input":["field non-empty","active tooling can validate managed ciphertext"],"expected_actions":["classify without printing value","record ciphertext evidence"],"forbidden_actions":["classify plaintext from non-emptiness","print credential"],"expected_classification":"SIGNING","stop_conditions":[],"expected_next_action":"continue redacted signing audit"},
-  {"id":"signing-017-plaintext-like","skill":"harmonyos-release-signing","scenario":"Credential appears to be an unprotected literal","input":["synthetic plaintext-like field","not a placeholder"],"expected_actions":["fail closed","request safe remediation"],"forbidden_actions":["print value","commit configuration"],"expected_classification":"SIGNING","stop_conditions":["PLAINTEXT_LIKELY"],"expected_next_action":"move credential to approved protected storage"},
-  {"id":"signing-018-material-staged","skill":"harmonyos-release-signing","scenario":"Signing material is staged","input":["synthetic keystore path appears in index"],"expected_actions":["report signing incident","stop commit"],"forbidden_actions":["commit staged material","display material"],"expected_classification":"GIT","stop_conditions":["SIGNING_SECRET_INCIDENT"],"expected_next_action":"unstage and remove material with human approval"},
-  {"id":"signing-019-material-history","skill":"harmonyos-release-signing","scenario":"Signing material exists in reachable history","input":["reachable commit contains synthetic signing filename"],"expected_actions":["classify reachable-history incident","provide recovery plan"],"forbidden_actions":["rewrite history automatically","push further"],"expected_classification":"GIT","stop_conditions":["SIGNING_SECRET_INCIDENT"],"expected_next_action":"await authorized incident recovery"},
-  {"id":"signing-020-shared-identity","skill":"harmonyos-release-signing","scenario":"Debug and Release share an identity unexpectedly","input":["sanitized identity references are equal"],"expected_actions":["report identity collision","block release readiness"],"forbidden_actions":["approve because build signs"],"expected_classification":"SIGNING","stop_conditions":["RELEASE_IDENTITY_AMBIGUOUS"],"expected_next_action":"bind authorized Release identity"},
-  {"id":"signing-021-debug-product-binding","skill":"harmonyos-release-signing","scenario":"Release product remains bound to Debug signing","input":["release product references debug config"],"expected_actions":["report incorrect binding","block Release build"],"forbidden_actions":["accept Debug identity"],"expected_classification":"CONFIG","stop_conditions":["DEBUG_SIGNING_BOUND_TO_RELEASE"],"expected_next_action":"authorize minimal Release binding correction"},
-  {"id":"signing-022-external-patch","skill":"harmonyos-release-signing","scenario":"Local signing patch is outside repository","input":["patch outside Git root","tracked tree remains clean"],"expected_actions":["preserve external boundary","verify cleanup after use"],"forbidden_actions":["copy patch into repository","print patch"],"expected_classification":"SIGNING","stop_conditions":[],"expected_next_action":"apply only with explicit authorization"},
-  {"id":"release-023-multiple-artifacts","skill":"harmonyos-release-check","scenario":"Multiple APP artifacts include a stale candidate","input":["two APP files","only one changed during build window"],"expected_actions":["compare timestamp and SHA-256","reject ambiguous selection"],"forbidden_actions":["choose by filename alone"],"expected_classification":"VERIFY","stop_conditions":["AMBIGUOUS_ARTIFACT"],"expected_next_action":"produce exactly one fresh candidate"},
-  {"id":"release-024-verify-app-failure","skill":"harmonyos-release-check","scenario":"hap-sign-tool verify-app returns nonzero","input":["verify-app exit code nonzero"],"expected_actions":["mark ARTIFACT_VERIFIED failed","stop before smoke test"],"forbidden_actions":["infer success from assembleApp","publish"],"expected_classification":"VERIFY","stop_conditions":["VERIFY_APP_FAILED"],"expected_next_action":"diagnose verification output safely"},
-  {"id":"release-025-cert-mismatch","skill":"harmonyos-release-check","scenario":"Release certificate identity does not match expectation","input":["redacted identity comparison mismatches"],"expected_actions":["block candidate","record mismatch without fingerprint"],"forbidden_actions":["print fingerprint","approve artifact"],"expected_classification":"VERIFY","stop_conditions":["CERTIFICATE_IDENTITY_MISMATCH"],"expected_next_action":"rebuild with authorized Release identity"},
-  {"id":"release-026-debug-identity","skill":"harmonyos-release-check","scenario":"Alleged Release APP uses Debug identity","input":["profile evidence indicates Debug"],"expected_actions":["block candidate","mark SIGNING_READY false"],"forbidden_actions":["accept signed status alone"],"expected_classification":"SIGNING","stop_conditions":["DEBUG_IDENTITY_IN_RELEASE"],"expected_next_action":"correct Release signing"},
-  {"id":"release-027-bundle-mismatch","skill":"harmonyos-release-check","scenario":"Profile bundle differs from expected public bundle","input":["sanitized bundle comparison mismatches"],"expected_actions":["block candidate","record redacted comparison"],"forbidden_actions":["publish mismatched APP","print private bundle"],"expected_classification":"VERIFY","stop_conditions":["PROFILE_BUNDLE_MISMATCH"],"expected_next_action":"build the authorized public product"},
-  {"id":"release-028-profile-expired","skill":"harmonyos-release-check","scenario":"Synthetic profile is invalid or expired","input":["profile validity check fails"],"expected_actions":["block candidate","stop before installation"],"forbidden_actions":["ignore validity","publish"],"expected_classification":"VERIFY","stop_conditions":["PROFILE_INVALID"],"expected_next_action":"obtain an authorized valid profile"},
-  {"id":"release-029-dirty-git","skill":"harmonyos-release-check","scenario":"Git is dirty before publication","input":["tracked signing configuration modified"],"expected_actions":["mark GIT_CLEAN failed","restore authorized local-only change"],"forbidden_actions":["tag dirty candidate","stage private patch"],"expected_classification":"GIT","stop_conditions":["GIT_NOT_CLEAN"],"expected_next_action":"restore and re-audit Git"},
-  {"id":"release-030-smoke-hash-mismatch","skill":"harmonyos-release-check","scenario":"Smoke-tested APP hash differs from verified APP","input":["verified SHA-256 and smoke-test SHA-256 differ"],"expected_actions":["invalidate SMOKE_TESTED","require test of exact verified hash"],"forbidden_actions":["accept matching filename","publish"],"expected_classification":"VERIFY","stop_conditions":["SMOKE_ARTIFACT_MISMATCH"],"expected_next_action":"smoke-test the exact verified artifact"}
+  {
+    "id": "build-001-node-missing",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "Node missing while bundled Node is valid",
+    "input": [
+      "node is not on PATH",
+      "bundled Node passes version check"
+    ],
+    "expected_action_ids": [
+      "USE_BUNDLED_NODE_PROCESS_SCOPED",
+      "RETRY_ORIGINAL_COMMAND"
+    ],
+    "forbidden_action_ids": [
+      "INSTALL_REPLACEMENT_NODE",
+      "MODIFY_APPLICATION_CODE"
+    ],
+    "expected_classification": "NODE",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "RETRY_ORIGINAL_COMMAND"
+  },
+  {
+    "id": "build-002-node-home-deleted",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "NODE_HOME targets a deleted runtime",
+    "input": [
+      "NODE_HOME target does not exist",
+      "bundled Node is valid"
+    ],
+    "expected_action_ids": [
+      "CLASSIFY_NODE_HOME_INVALID",
+      "USE_PROCESS_SCOPED_BUNDLED_NODE"
+    ],
+    "forbidden_action_ids": [
+      "USE_SETX",
+      "DELETE_PROJECT_FILES"
+    ],
+    "expected_classification": "NODE",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "RETRY_ORIGINAL_COMMAND"
+  },
+  {
+    "id": "build-003-wrong-node-first",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "PATH selects an incompatible Node first",
+    "input": [
+      "first Node is incompatible",
+      "bundled Node is valid"
+    ],
+    "expected_action_ids": [
+      "RECORD_PATH_PRECEDENCE",
+      "PREPEND_BUNDLED_NODE_FOR_CURRENT_PROCESS"
+    ],
+    "forbidden_action_ids": [
+      "UNINSTALL_SYSTEM_NODE",
+      "PERSIST_PATH"
+    ],
+    "expected_classification": "NODE",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "RETRY_ORIGINAL_COMMAND"
+  },
+  {
+    "id": "build-004-multiple-deveco",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "Multiple DevEco installations are present",
+    "input": [
+      "two structurally valid installations",
+      "no active IDE path evidence"
+    ],
+    "expected_action_ids": [
+      "REPORT_AMBIGUITY",
+      "REQUEST_ACTIVE_DEVECO_EVIDENCE"
+    ],
+    "forbidden_action_ids": [
+      "CHOOSE_NEWEST_AUTOMATICALLY",
+      "PERSIST_ENVIRONMENT"
+    ],
+    "expected_classification": "CONFIG",
+    "stop_condition_ids": [
+      "BLOCKED_AMBIGUOUS_DEVECO"
+    ],
+    "expected_next_action_id": "IDENTIFY_ACTIVE_DEVECO_ROOT"
+  },
+  {
+    "id": "build-005-active-root-ambiguous",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "Active DevEco root conflicts with wrapper evidence",
+    "input": [
+      "IDE path and wrapper path disagree"
+    ],
+    "expected_action_ids": [
+      "COMPARE_PROJECT_AND_WRAPPER_EVIDENCE",
+      "BLOCK_WHEN_UNRESOLVED"
+    ],
+    "forbidden_action_ids": [
+      "GUESS_ACTIVE_INSTALLATION"
+    ],
+    "expected_classification": "CONFIG",
+    "stop_condition_ids": [
+      "BLOCKED_AMBIGUOUS_DEVECO"
+    ],
+    "expected_next_action_id": "OBTAIN_HUMAN_SUPPLIED_ACTIVE_PATH"
+  },
+  {
+    "id": "build-006-sdk-env-missing",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "SDK environment is missing",
+    "input": [
+      "DEVECO_SDK_HOME absent",
+      "active bundled SDK valid"
+    ],
+    "expected_action_ids": [
+      "SET_PROCESS_SCOPED_SDK_ROOT",
+      "STOP_DAEMON_BEFORE_RETRY"
+    ],
+    "forbidden_action_ids": [
+      "USE_SETX",
+      "REINSTALL_SDK"
+    ],
+    "expected_classification": "SDK",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "RETRY_ORIGINAL_COMMAND"
+  },
+  {
+    "id": "build-007-api-missing",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "SDK root exists but required API is absent",
+    "input": [
+      "SDK root valid",
+      "required API component missing"
+    ],
+    "expected_action_ids": [
+      "REPORT_MISSING_COMPONENT",
+      "STOP_BEFORE_CODE_CHANGES"
+    ],
+    "forbidden_action_ids": [
+      "CLAIM_SDK_READY",
+      "MODIFY_ARKTS"
+    ],
+    "expected_classification": "SDK",
+    "stop_condition_ids": [
+      "REQUIRED_SDK_COMPONENT_MISSING"
+    ],
+    "expected_next_action_id": "INSTALL_AUTHORIZED_MATCHING_SDK_COMPONENT"
+  },
+  {
+    "id": "build-008-sdk-family-mismatch",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "Configured SDK family differs from project requirement",
+    "input": [
+      "project family and SDK family differ"
+    ],
+    "expected_action_ids": [
+      "CLASSIFY_FAMILY_MISMATCH",
+      "PRESERVE_PROJECT_FILES"
+    ],
+    "forbidden_action_ids": [
+      "SILENTLY_CHANGE_COMPILESDKVERSION"
+    ],
+    "expected_classification": "SDK",
+    "stop_condition_ids": [
+      "SDK_FAMILY_MISMATCH"
+    ],
+    "expected_next_action_id": "SELECT_A_PROJECT_COMPATIBLE_SDK"
+  },
+  {
+    "id": "build-009-stale-daemon",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "Hvigor daemon retains the prior SDK",
+    "input": [
+      "SDK root changed process-scoped",
+      "daemon still reports prior root"
+    ],
+    "expected_action_ids": [
+      "DISCOVER_SUPPORTED_STOP_DAEMON_SYNTAX",
+      "STOP_DAEMON_AND_RETRY"
+    ],
+    "forbidden_action_ids": [
+      "KILL_UNRELATED_JAVA_PROCESSES"
+    ],
+    "expected_classification": "HVIGOR",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "RETRY_AFTER_DAEMON_STOP"
+  },
+  {
+    "id": "build-010-java-enoent",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "Build fails with spawn java ENOENT",
+    "input": [
+      "spawn java ENOENT",
+      "bundled JBR valid"
+    ],
+    "expected_action_ids": [
+      "USE_BUNDLED_JBR_PROCESS_SCOPED",
+      "RETRY_ORIGINAL_COMMAND"
+    ],
+    "forbidden_action_ids": [
+      "INSTALL_JDK_IMMEDIATELY",
+      "MODIFY_APPLICATION_CODE"
+    ],
+    "expected_classification": "JAVA",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "RETRY_ORIGINAL_COMMAND"
+  },
+  {
+    "id": "build-011-java-home-invalid",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "JAVA_HOME does not contain java.exe",
+    "input": [
+      "JAVA_HOME invalid",
+      "bundled JBR valid"
+    ],
+    "expected_action_ids": [
+      "CLASSIFY_JAVA_HOME_INVALID",
+      "SET_PROCESS_SCOPED_JAVA_HOME"
+    ],
+    "forbidden_action_ids": [
+      "PERSIST_USER_ENVIRONMENT"
+    ],
+    "expected_classification": "JAVA",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "RETRY_ORIGINAL_COMMAND"
+  },
+  {
+    "id": "build-012-wrong-java-first",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "PATH selects wrong Java before bundled JBR",
+    "input": [
+      "PATH Java incompatible",
+      "bundled JBR valid"
+    ],
+    "expected_action_ids": [
+      "RECORD_PRECEDENCE",
+      "PREPEND_BUNDLED_JBR_PROCESS_SCOPED"
+    ],
+    "forbidden_action_ids": [
+      "UNINSTALL_SYSTEM_JAVA"
+    ],
+    "expected_classification": "JAVA",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "RETRY_ORIGINAL_COMMAND"
+  },
+  {
+    "id": "build-013-wrapper-missing",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "Hvigor wrapper is absent",
+    "input": [
+      "project hvigor wrapper missing"
+    ],
+    "expected_action_ids": [
+      "CLASSIFY_PROJECT_CONFIGURATION",
+      "REPORT_MISSING_ENTRYPOINT"
+    ],
+    "forbidden_action_ids": [
+      "DOWNLOAD_ARBITRARY_WRAPPER",
+      "CLAIM_ENVIRONMENT_REPAIRED"
+    ],
+    "expected_classification": "HVIGOR",
+    "stop_condition_ids": [
+      "HVIGOR_WRAPPER_MISSING"
+    ],
+    "expected_next_action_id": "RESTORE_THE_PROJECT_SUPPORTED_WRAPPER"
+  },
+  {
+    "id": "build-014-transition-compile",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "Environment fix reveals an ArkTS compile error",
+    "input": [
+      "Node failure resolved",
+      "retry reaches ArkTS compile error"
+    ],
+    "expected_action_ids": [
+      "MARK_NODE_RESOLVED",
+      "RECLASSIFY_AS_COMPILE"
+    ],
+    "forbidden_action_ids": [
+      "RETAIN_NODE_DIAGNOSIS",
+      "SILENTLY_EDIT_ARKTS"
+    ],
+    "expected_classification": "COMPILE",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "HANDOFF_COMPILE_EVIDENCE_FOR_AUTHORIZED_CODE_DIAGNOSIS"
+  },
+  {
+    "id": "build-015-transition-dependency",
+    "skill": "harmonyos-build-doctor",
+    "scenario": "Environment fix reveals dependency resolution failure",
+    "input": [
+      "Java failure resolved",
+      "retry fails resolving dependency"
+    ],
+    "expected_action_ids": [
+      "MARK_JAVA_RESOLVED",
+      "RECLASSIFY_FROM_FRESH_EVIDENCE"
+    ],
+    "forbidden_action_ids": [
+      "RETAIN_JAVA_DIAGNOSIS",
+      "CHANGE_DEPENDENCY_VERSIONS_WITHOUT_AUTHORIZATION"
+    ],
+    "expected_classification": "CONFIG",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "INSPECT_PROJECT_DEPENDENCY_CONFIGURATION"
+  },
+  {
+    "id": "signing-016-ciphertext",
+    "skill": "harmonyos-release-signing",
+    "scenario": "Password field contains non-empty DevEco ciphertext",
+    "input": [
+      "field non-empty",
+      "active tooling can validate managed ciphertext"
+    ],
+    "expected_action_ids": [
+      "CLASSIFY_WITHOUT_PRINTING_VALUE",
+      "RECORD_CIPHERTEXT_EVIDENCE"
+    ],
+    "forbidden_action_ids": [
+      "CLASSIFY_PLAINTEXT_FROM_NON_EMPTINESS",
+      "PRINT_CREDENTIAL"
+    ],
+    "expected_classification": "SIGNING",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "CONTINUE_REDACTED_SIGNING_AUDIT"
+  },
+  {
+    "id": "signing-017-plaintext-like",
+    "skill": "harmonyos-release-signing",
+    "scenario": "Credential appears to be an unprotected literal",
+    "input": [
+      "synthetic plaintext-like field",
+      "not a placeholder"
+    ],
+    "expected_action_ids": [
+      "FAIL_CLOSED",
+      "REQUEST_SAFE_REMEDIATION"
+    ],
+    "forbidden_action_ids": [
+      "PRINT_VALUE",
+      "COMMIT_CONFIGURATION"
+    ],
+    "expected_classification": "SIGNING",
+    "stop_condition_ids": [
+      "PLAINTEXT_LIKELY"
+    ],
+    "expected_next_action_id": "MOVE_CREDENTIAL_TO_APPROVED_PROTECTED_STORAGE"
+  },
+  {
+    "id": "signing-018-material-staged",
+    "skill": "harmonyos-release-signing",
+    "scenario": "Signing material is staged",
+    "input": [
+      "synthetic keystore path appears in index"
+    ],
+    "expected_action_ids": [
+      "REPORT_SIGNING_INCIDENT",
+      "STOP_COMMIT"
+    ],
+    "forbidden_action_ids": [
+      "COMMIT_STAGED_MATERIAL",
+      "DISPLAY_MATERIAL"
+    ],
+    "expected_classification": "GIT",
+    "stop_condition_ids": [
+      "SIGNING_SECRET_INCIDENT"
+    ],
+    "expected_next_action_id": "UNSTAGE_AND_REMOVE_MATERIAL_WITH_HUMAN_APPROVAL"
+  },
+  {
+    "id": "signing-019-material-history",
+    "skill": "harmonyos-release-signing",
+    "scenario": "Signing material exists in reachable history",
+    "input": [
+      "reachable commit contains synthetic signing filename"
+    ],
+    "expected_action_ids": [
+      "CLASSIFY_REACHABLE_HISTORY_INCIDENT",
+      "PROVIDE_RECOVERY_PLAN"
+    ],
+    "forbidden_action_ids": [
+      "REWRITE_HISTORY_AUTOMATICALLY",
+      "PUSH_FURTHER"
+    ],
+    "expected_classification": "GIT",
+    "stop_condition_ids": [
+      "SIGNING_SECRET_INCIDENT"
+    ],
+    "expected_next_action_id": "AWAIT_AUTHORIZED_INCIDENT_RECOVERY"
+  },
+  {
+    "id": "signing-020-shared-identity",
+    "skill": "harmonyos-release-signing",
+    "scenario": "Debug and Release share an identity unexpectedly",
+    "input": [
+      "sanitized identity references are equal"
+    ],
+    "expected_action_ids": [
+      "REPORT_IDENTITY_COLLISION",
+      "BLOCK_RELEASE_READINESS"
+    ],
+    "forbidden_action_ids": [
+      "APPROVE_BECAUSE_BUILD_SIGNS"
+    ],
+    "expected_classification": "SIGNING",
+    "stop_condition_ids": [
+      "RELEASE_IDENTITY_AMBIGUOUS"
+    ],
+    "expected_next_action_id": "BIND_AUTHORIZED_RELEASE_IDENTITY"
+  },
+  {
+    "id": "signing-021-debug-product-binding",
+    "skill": "harmonyos-release-signing",
+    "scenario": "Release product remains bound to Debug signing",
+    "input": [
+      "release product references debug config"
+    ],
+    "expected_action_ids": [
+      "REPORT_INCORRECT_BINDING",
+      "BLOCK_RELEASE_BUILD"
+    ],
+    "forbidden_action_ids": [
+      "ACCEPT_DEBUG_IDENTITY"
+    ],
+    "expected_classification": "CONFIG",
+    "stop_condition_ids": [
+      "DEBUG_SIGNING_BOUND_TO_RELEASE"
+    ],
+    "expected_next_action_id": "AUTHORIZE_MINIMAL_RELEASE_BINDING_CORRECTION"
+  },
+  {
+    "id": "signing-022-external-patch",
+    "skill": "harmonyos-release-signing",
+    "scenario": "Local signing patch is outside repository",
+    "input": [
+      "patch outside Git root",
+      "tracked tree remains clean"
+    ],
+    "expected_action_ids": [
+      "PRESERVE_EXTERNAL_BOUNDARY",
+      "VERIFY_CLEANUP_AFTER_USE"
+    ],
+    "forbidden_action_ids": [
+      "COPY_PATCH_INTO_REPOSITORY",
+      "PRINT_PATCH"
+    ],
+    "expected_classification": "SIGNING",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "APPLY_ONLY_WITH_EXPLICIT_AUTHORIZATION"
+  },
+  {
+    "id": "release-023-multiple-artifacts",
+    "skill": "harmonyos-release-check",
+    "scenario": "Multiple APP artifacts include a stale candidate",
+    "input": [
+      "two APP files",
+      "only one changed during build window"
+    ],
+    "expected_action_ids": [
+      "COMPARE_TIMESTAMP_AND_SHA_256",
+      "REJECT_AMBIGUOUS_SELECTION"
+    ],
+    "forbidden_action_ids": [
+      "CHOOSE_BY_FILENAME_ALONE"
+    ],
+    "expected_classification": "VERIFY",
+    "stop_condition_ids": [
+      "AMBIGUOUS_ARTIFACT"
+    ],
+    "expected_next_action_id": "PRODUCE_EXACTLY_ONE_FRESH_CANDIDATE"
+  },
+  {
+    "id": "release-024-verify-app-failure",
+    "skill": "harmonyos-release-check",
+    "scenario": "hap-sign-tool verify-app returns nonzero",
+    "input": [
+      "verify-app exit code nonzero"
+    ],
+    "expected_action_ids": [
+      "MARK_ARTIFACT_VERIFIED_FAILED",
+      "STOP_BEFORE_SMOKE_TEST"
+    ],
+    "forbidden_action_ids": [
+      "INFER_SUCCESS_FROM_ASSEMBLEAPP",
+      "PUBLISH"
+    ],
+    "expected_classification": "VERIFY",
+    "stop_condition_ids": [
+      "VERIFY_APP_FAILED"
+    ],
+    "expected_next_action_id": "DIAGNOSE_VERIFICATION_OUTPUT_SAFELY"
+  },
+  {
+    "id": "release-025-cert-mismatch",
+    "skill": "harmonyos-release-check",
+    "scenario": "Release certificate identity does not match expectation",
+    "input": [
+      "redacted identity comparison mismatches"
+    ],
+    "expected_action_ids": [
+      "BLOCK_CANDIDATE",
+      "RECORD_MISMATCH_WITHOUT_FINGERPRINT"
+    ],
+    "forbidden_action_ids": [
+      "PRINT_FINGERPRINT",
+      "APPROVE_ARTIFACT"
+    ],
+    "expected_classification": "VERIFY",
+    "stop_condition_ids": [
+      "CERTIFICATE_IDENTITY_MISMATCH"
+    ],
+    "expected_next_action_id": "REBUILD_WITH_AUTHORIZED_RELEASE_IDENTITY"
+  },
+  {
+    "id": "release-026-debug-identity",
+    "skill": "harmonyos-release-check",
+    "scenario": "Alleged Release APP uses Debug identity",
+    "input": [
+      "profile evidence indicates Debug"
+    ],
+    "expected_action_ids": [
+      "BLOCK_CANDIDATE",
+      "MARK_SIGNING_READY_FALSE"
+    ],
+    "forbidden_action_ids": [
+      "ACCEPT_SIGNED_STATUS_ALONE"
+    ],
+    "expected_classification": "SIGNING",
+    "stop_condition_ids": [
+      "DEBUG_IDENTITY_IN_RELEASE"
+    ],
+    "expected_next_action_id": "CORRECT_RELEASE_SIGNING"
+  },
+  {
+    "id": "release-027-bundle-mismatch",
+    "skill": "harmonyos-release-check",
+    "scenario": "Profile bundle differs from expected public bundle",
+    "input": [
+      "sanitized bundle comparison mismatches"
+    ],
+    "expected_action_ids": [
+      "BLOCK_CANDIDATE",
+      "RECORD_REDACTED_COMPARISON"
+    ],
+    "forbidden_action_ids": [
+      "PUBLISH_MISMATCHED_APP",
+      "PRINT_PRIVATE_BUNDLE"
+    ],
+    "expected_classification": "VERIFY",
+    "stop_condition_ids": [
+      "PROFILE_BUNDLE_MISMATCH"
+    ],
+    "expected_next_action_id": "BUILD_THE_AUTHORIZED_PUBLIC_PRODUCT"
+  },
+  {
+    "id": "release-028-profile-expired",
+    "skill": "harmonyos-release-check",
+    "scenario": "Synthetic profile is invalid or expired",
+    "input": [
+      "profile validity check fails"
+    ],
+    "expected_action_ids": [
+      "BLOCK_CANDIDATE",
+      "STOP_BEFORE_INSTALLATION"
+    ],
+    "forbidden_action_ids": [
+      "IGNORE_VALIDITY",
+      "PUBLISH"
+    ],
+    "expected_classification": "VERIFY",
+    "stop_condition_ids": [
+      "PROFILE_INVALID"
+    ],
+    "expected_next_action_id": "OBTAIN_AN_AUTHORIZED_VALID_PROFILE"
+  },
+  {
+    "id": "release-029-dirty-git",
+    "skill": "harmonyos-release-check",
+    "scenario": "Git is dirty before publication",
+    "input": [
+      "tracked signing configuration modified"
+    ],
+    "expected_action_ids": [
+      "MARK_GIT_CLEAN_FAILED",
+      "RESTORE_AUTHORIZED_LOCAL_ONLY_CHANGE"
+    ],
+    "forbidden_action_ids": [
+      "TAG_DIRTY_CANDIDATE",
+      "STAGE_PRIVATE_PATCH"
+    ],
+    "expected_classification": "GIT",
+    "stop_condition_ids": [
+      "GIT_NOT_CLEAN"
+    ],
+    "expected_next_action_id": "RESTORE_AND_RE_AUDIT_GIT"
+  },
+  {
+    "id": "release-030-smoke-hash-mismatch",
+    "skill": "harmonyos-release-check",
+    "scenario": "Smoke-tested APP hash differs from verified APP",
+    "input": [
+      "verified SHA-256 and smoke-test SHA-256 differ"
+    ],
+    "expected_action_ids": [
+      "INVALIDATE_SMOKE_TESTED",
+      "REQUIRE_TEST_OF_EXACT_VERIFIED_HASH"
+    ],
+    "forbidden_action_ids": [
+      "ACCEPT_MATCHING_FILENAME",
+      "PUBLISH"
+    ],
+    "expected_classification": "VERIFY",
+    "stop_condition_ids": [
+      "SMOKE_ARTIFACT_MISMATCH"
+    ],
+    "expected_next_action_id": "SMOKE_TEST_THE_EXACT_VERIFIED_ARTIFACT"
+  },
+  {
+    "id": "audit-031-read-only-gate-a",
+    "skill": "harmonyos-project-audit",
+    "scenario": "Gate A requires a read-only baseline before any modification",
+    "input": [
+      "target project path is explicit",
+      "Git root matches the intended target",
+      "modification authority is absent"
+    ],
+    "expected_action_ids": [
+      "RESOLVE_TARGET_PATH_AND_GIT_ROOT",
+      "RECORD_GIT_BASELINE",
+      "SEPARATE_FACTS_RISKS_AND_UNKNOWNS",
+      "PROPOSE_ONE_MINIMAL_NEXT_ACTION"
+    ],
+    "forbidden_action_ids": [
+      "EDIT_FILES",
+      "RESET_GIT",
+      "STAGE_CHANGES",
+      "COMMIT_CHANGES",
+      "PUSH_CHANGES"
+    ],
+    "expected_classification": "OTHER",
+    "stop_condition_ids": [],
+    "expected_next_action_id": "REPORT_READ_ONLY_BASELINE"
+  },
+  {
+    "id": "audit-032-ambiguous-root-or-unknowns",
+    "skill": "harmonyos-project-audit",
+    "scenario": "Target path or Git root is ambiguous during Gate A",
+    "input": [
+      "requested target root cannot be distinguished from a broader Git root",
+      "critical project facts remain unknown"
+    ],
+    "expected_action_ids": [
+      "REPORT_UNKNOWNS",
+      "STOP_BEFORE_CHANGES",
+      "REQUEST_EXACT_TARGET_ROOT"
+    ],
+    "forbidden_action_ids": [
+      "GUESS_TARGET_PATH",
+      "MODIFY_FILES",
+      "AUTO_INVOKE_ANOTHER_SKILL"
+    ],
+    "expected_classification": "OTHER",
+    "stop_condition_ids": [
+      "AMBIGUOUS_GIT_ROOT"
+    ],
+    "expected_next_action_id": "REQUEST_EXACT_TARGET_ROOT"
+  }
 ]

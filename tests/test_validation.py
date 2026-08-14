@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -63,8 +64,75 @@ class ValidationTests(unittest.TestCase):
     def test_decision_case_contracts(self) -> None:
         cases, errors = self.reliability.validate_cases(REPO_ROOT)
         self.assertEqual([], errors)
-        self.assertEqual(30, len(cases))
-        self.assertEqual(30, len({case["id"] for case in cases}))
+        self.assertEqual(32, len(cases))
+        self.assertEqual(32, len({case["id"] for case in cases}))
+        self.assertEqual(
+            {"audit-031-read-only-gate-a", "audit-032-ambiguous-root-or-unknowns"},
+            {case["id"] for case in cases if case["skill"] == "harmonyos-project-audit"},
+        )
+
+    def test_canonical_registry_and_live_response_schema(self) -> None:
+        actions, stops, errors = self.reliability.validate_canonical_registry(REPO_ROOT)
+        self.assertEqual([], errors)
+        self.assertGreater(len(actions), 100)
+        self.assertGreater(len(stops), 10)
+        self.assertEqual([], self.reliability.validate_live_eval_schema(REPO_ROOT))
+
+    def make_case_validation_root(self, temporary: str) -> Path:
+        root = Path(temporary)
+        shutil.copy2(REPO_ROOT / "skills-manifest.json", root / "skills-manifest.json")
+        for skill in json.loads((REPO_ROOT / "skills-manifest.json").read_text(encoding="utf-8"))["skills"]:
+            target = root / skill["path"]
+            target.mkdir(parents=True)
+            shutil.copy2(REPO_ROOT / skill["path"] / "SKILL.md", target / "SKILL.md")
+        evals = root / "tests" / "evals"
+        evals.mkdir(parents=True)
+        shutil.copy2(REPO_ROOT / "tests" / "evals" / "canonical-ids.json", evals / "canonical-ids.json")
+        shutil.copy2(REPO_ROOT / "tests" / "evals" / "reliability-cases.json", evals / "reliability-cases.json")
+        return root
+
+    def test_case_validator_rejects_legacy_unknown_duplicate_and_unexpected_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.make_case_validation_root(temporary)
+            path = root / "tests" / "evals" / "reliability-cases.json"
+            cases = json.loads(path.read_text(encoding="utf-8"))
+            cases[0]["expected_actions"] = ["legacy prose"]
+            cases[0]["unexpected"] = True
+            cases[1]["expected_action_ids"].append(cases[1]["expected_action_ids"][0])
+            cases[2]["forbidden_action_ids"].append("UNKNOWN_ACTION_ID")
+            path.write_text(json.dumps(cases), encoding="utf-8")
+            _, errors = self.reliability.validate_cases(root)
+            joined = "\n".join(errors)
+            self.assertIn("extra=", joined)
+            self.assertIn("duplicate IDs", joined)
+            self.assertIn("unknown action IDs", joined)
+
+    def test_registry_validator_rejects_duplicate_and_invalid_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "tests" / "evals"
+            path.mkdir(parents=True)
+            (path / "canonical-ids.json").write_text(
+                json.dumps({"schema_version": "1.0", "action_ids": ["VALID_ID", "VALID_ID", "invalid"], "stop_condition_ids": ["STOP_ID"]}),
+                encoding="utf-8",
+            )
+            _, _, errors = self.reliability.validate_canonical_registry(Path(temporary))
+            self.assertTrue(any("duplicate" in error for error in errors))
+            self.assertTrue(any("invalid canonical ID" in error for error in errors))
+
+    def test_case_validator_fails_closed_on_wrong_types(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.make_case_validation_root(temporary)
+            path = root / "tests" / "evals" / "reliability-cases.json"
+            cases = json.loads(path.read_text(encoding="utf-8"))
+            cases[0]["expected_action_ids"] = None
+            cases[0]["expected_next_action_id"] = {"invalid": True}
+            cases[0]["scenario"] = None
+            path.write_text(json.dumps(cases), encoding="utf-8")
+            _, errors = self.reliability.validate_cases(root)
+            joined = "\n".join(errors)
+            self.assertIn("expected_action_ids must be a non-empty array", joined)
+            self.assertIn("expected_next_action_id must be a canonical ID", joined)
+            self.assertIn("scenario must be a non-empty string", joined)
 
     def test_skill_dependency_graph_is_dag(self) -> None:
         graph, errors = self.reliability.validate_manifest(REPO_ROOT)
@@ -122,11 +190,11 @@ class ValidationTests(unittest.TestCase):
         case = {
             "id": "synthetic-grade",
             "skill": "harmonyos-build-doctor",
-            "expected_actions": ["retry original command"],
-            "forbidden_actions": ["persist environment"],
+            "expected_action_ids": ["RETRY_ORIGINAL_COMMAND"],
+            "forbidden_action_ids": ["PERSIST_ENVIRONMENT"],
             "expected_classification": "NODE",
-            "stop_conditions": [],
-            "expected_next_action": "retry original command",
+            "stop_condition_ids": [],
+            "expected_next_action_id": "RETRY_ORIGINAL_COMMAND",
         }
         passing = harness.grade(
             case,
@@ -144,7 +212,7 @@ class ValidationTests(unittest.TestCase):
                 "action_ids": ["PERSIST_ENVIRONMENT"],
                 "classification": "NODE",
                 "stop_condition_ids": [],
-                "next_action_id": "DONE",
+                "next_action_id": "PERSIST_ENVIRONMENT",
                 "final_decision": "done",
             },
         )
@@ -157,11 +225,11 @@ class ValidationTests(unittest.TestCase):
         case = {
             "id": "synthetic-prose",
             "skill": "harmonyos-build-doctor",
-            "expected_actions": ["retry original command"],
-            "forbidden_actions": ["persist environment"],
+            "expected_action_ids": ["RETRY_ORIGINAL_COMMAND"],
+            "forbidden_action_ids": ["PERSIST_ENVIRONMENT"],
             "expected_classification": "NODE",
-            "stop_conditions": [],
-            "expected_next_action": "retry original command",
+            "stop_condition_ids": [],
+            "expected_next_action_id": "RETRY_ORIGINAL_COMMAND",
         }
         result = harness.grade(
             case,
@@ -169,7 +237,7 @@ class ValidationTests(unittest.TestCase):
                 "action_ids": [],
                 "classification": "NODE",
                 "stop_condition_ids": [],
-                "next_action_id": "UNDECIDED",
+                "next_action_id": "RETRY_ORIGINAL_COMMAND",
                 "final_decision": "I will retry original command and will not persist environment.",
             },
         )

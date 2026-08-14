@@ -36,6 +36,8 @@ Read-only audit -> authorized minimal change -> focused validation
 
 The publication state machine is `SIGNING_READY -> BUILD_READY -> ARTIFACT_VERIFIED -> SMOKE_TESTED -> GIT_CLEAN -> READY_FOR_PUBLICATION`. Release Signing establishes readiness without running `assembleApp`; Release Check owns the single formal Release build and every downstream gate.
 
+For public repositories with a declared publication identity policy, `PUBLIC_IDENTITY_POLICY_PASS` is a named condition between `GIT_CLEAN` and `READY_FOR_PUBLICATION`. It is not a seventh state. The repository policy applies only to publication-control objects; ordinary non-merge contributor commits retain valid public identity flexibility.
+
 Release Check runs a separate Git preflight before `SIGNING_READY` to prove the correct root, intended HEAD, tracked/staged scope, and credential boundary. That pre-build audit is distinct from the post-smoke-test `GIT_CLEAN` state.
 
 A downstream state never backfills an upstream state. For example, a file named `release` does not prove Release mode, and a successful compile does not prove device behavior.
@@ -58,4 +60,5 @@ The first three are independent or leaf workflows. Release Check is the only rel
 - [`skill-routing.md`](skill-routing.md) defines one primary route per typical intent and explicit, non-recursive handoffs.
 - [`../schemas/evidence.schema.json`](../schemas/evidence.schema.json) defines optional redacted evidence for machine handoff while preserving human-readable output.
 - [`../tests/evals/reliability-cases.json`](../tests/evals/reliability-cases.json) contains deterministic synthetic contracts.
+- [`../tests/evals/canonical-ids.json`](../tests/evals/canonical-ids.json) is the authoritative action and stop-condition registry; fixture prose never generates machine IDs.
 - [`behavioral-evals.md`](behavioral-evals.md) distinguishes blocking contract checks from optional real-agent execution.

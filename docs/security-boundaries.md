@@ -21,6 +21,12 @@ Private identifiers are not embedded in the scanner or CI. Supply them only at r
 
 Git object metadata is audited separately by `scripts/scan_git_metadata.py`. It checks author, committer, and message fields for commits reachable from local/remote branch and tag refs; annotated-tag tagger and message fields; and branch/tag ref names. Runtime private markers follow the same outside-repository rule and matched values are suppressed.
 
+Publication-control identity is a separate policy concept. `policies/publication-identity.json` contains only approved public identity tuples. Publication mode checks the candidate tip, merge-control objects in a supplied base-to-candidate range, and an optional annotated-tag tagger. It does not blacklist personal email domains or require ordinary non-merge contributors to use noreply addresses. Failures disclose only object type, SHA, field, and policy rule.
+
+## Live-agent boundary
+
+Live evaluation uses only synthetic fixtures and the selected Skill dependency closure. The runner accepts no arbitrary shell command, inherits only an explicit environment allowlist, redirects the synthetic home, ignores user configuration when confirmed by local CLI help, and requires a dedicated external authentication home. Prompt instructions are not isolation evidence: real calls require a separately demonstrated filesystem, connector, credential, and network boundary. If any capability, authentication, or isolation gate is unproven, the correct result is `LIVE_AGENT_EVAL_NOT_RUN`.
+
 ## Mutation boundary
 
 Audit and environment discovery are read-only. Process-scoped environment changes are allowed only for a controlled retry; User/Machine changes require separate authorization. Signing, device data, Git history rewrites, publication, tags, releases, and visibility changes are explicit human gates.

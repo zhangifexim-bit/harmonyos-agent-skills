@@ -102,7 +102,7 @@ python scripts\validate_reliability.py
 python scripts\run_behavioral_evals.py --case build-001-node-missing
 ```
 
-The second command validates the optional harness and reports `LIVE_AGENT_EVAL_NOT_RUN`; a real agent is called only with explicit `--execute` and a reviewed runner command. See [behavioral evaluations](docs/behavioral-evals.md).
+The second command validates the optional harness and reports `LIVE_AGENT_EVAL_NOT_RUN`. Real calls use the first-class Codex runner only after executable, CLI capability, dedicated-authentication, environment, and external-isolation gates pass; the bounded default matrix permits at most 18 calls. `CONTRACT_EVAL_PASS` never implies a live Agent pass. See [behavioral evaluations](docs/behavioral-evals.md).
 
 ## Example prompts
 

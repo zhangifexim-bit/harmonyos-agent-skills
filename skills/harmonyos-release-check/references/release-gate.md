@@ -10,6 +10,8 @@ No state may be inferred from a later state. Each transition needs independent e
 
 Before the state machine starts, run a separate Git preflight that proves the correct root, intended HEAD, tracked/staged scope, and credential boundary. This pre-build audit does not satisfy the later `GIT_CLEAN` state.
 
+For a public repository that declares a publication identity policy, require the named condition `PUBLIC_IDENTITY_POLICY_PASS` after `GIT_CLEAN` and before `READY_FOR_PUBLICATION`. It validates publication-control identities without adding a seventh state or rejecting ordinary non-merge contributors solely for using a valid public email.
+
 | Gate | PASS evidence | Fail closed when |
 | --- | --- | --- |
 | Git scope | Intended HEAD, reviewed diff, no credentials | Wrong root, unrelated changes, sensitive files |
@@ -22,6 +24,7 @@ Before the state machine starts, run a separate Git preflight that proves the co
 | Digest | SHA-256 recorded and stable | Artifact changes after verification |
 | Device smoke | Human tests exact digest on intended device class | Different file, not run, failed observation |
 | Cleanup | Local signing diff restored; temp evidence outside Git | Dirty tracked config or staged material |
+| Public identity policy | Candidate control identities and any supplied annotated-tag tagger match the repository policy | Policy missing/invalid, history incomplete, ref unresolved, or publication-control identity unauthorized |
 | Publication | Separate explicit authorization | Any gate incomplete or no authorization |
 
 `BLOCKED` is not `FAIL`: use it when required external evidence or human testing is unavailable. Neither state permits publication.

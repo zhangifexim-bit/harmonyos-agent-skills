@@ -38,6 +38,25 @@ When PowerShell is available, parse and execute the environment probe in a read-
 
 Live-agent evals are optional and must never be described as passing unless an agent was actually invoked and graded. Keep public CI deterministic; do not require credentials or paid quota to validate a pull request.
 
+## Compatibility evidence submissions
+
+Use this compact template for a sanitized community report:
+
+- Status:
+- OS and build:
+- Shell and version:
+- DevEco Studio:
+- HarmonyOS API / SDK:
+- Node:
+- JBR:
+- Hvigor:
+- Tested workflow:
+- Evidence date:
+- Evidence source/type:
+- Limitations:
+
+Do not include project names, bundle IDs, personal paths, account identities, signing material, or credentials. One successful environment is evidence for that combination only.
+
 ## Pull requests
 
 - Explain the concrete failure mode or workflow gap.
